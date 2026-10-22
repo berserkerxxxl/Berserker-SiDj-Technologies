@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="150 185 404 404" role="img" aria-labelledby="title desc">
+<title id="title">Круглый фирменный знак B/S — Berserker &amp; SiDj Technologies</title>
+<desc id="desc">Круглая синяя и фиолетовая эмблема B/S с электронными дорожками.</desc>
+<defs>
+  <linearGradient id="line" x1="0" x2="1" y1="0" y2="0">
+    <stop stop-color="#198bfa"/>
+    <stop offset=".54" stop-color="#526eff"/>
+    <stop offset="1" stop-color="#b75dff"/>
+  </linearGradient>
+</defs>
+<circle cx="352" cy="387" r="194" fill="#07182f"/>
+<circle cx="352" cy="387" r="178" stroke="url(#line)" stroke-width="17" fill="#061530"/>
+<circle cx="352" cy="387" r="141" stroke="#7196ee" stroke-width="5" stroke-dasharray="17 21" fill="none" opacity=".85"/>
+<path d="M240 332h80l44 39 38-39h70 M239 444h78l47-42 38 42h70 M352 270v53 M352 451v49" stroke="url(#line)" stroke-width="10" fill="none"/>
+<text x="352" y="421" font-size="101" font-family="Arial, Helvetica, sans-serif" font-weight="800" text-anchor="middle" fill="#fff">B/S</text>
+</svg>
