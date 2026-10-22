@@ -38,6 +38,13 @@ section{padding:60px 0}.eyebrow{text-transform:uppercase;font-size:.79rem;font-w
 .product-description{margin:0;color:#c6d5ed;font-size:1rem;line-height:1.65}
 .product-features{display:flex;flex-wrap:wrap;gap:8px;margin-top:23px}
 .product-features span{font-size:.77rem;line-height:1.35;font-weight:650;color:#d8e9ff;border:1px solid #5577a76b;background:#304a7544;border-radius:999px;padding:7px 12px}
+.version-tag{display:inline-block;vertical-align:middle;font-size:.67rem;letter-spacing:0;font-weight:750;color:#bcd7ff;padding:6px 10px;border:1px solid #5b81bd6b;background:#233b6459;border-radius:999px}
+.product-actions{display:flex;flex-wrap:wrap;gap:11px;margin-top:27px}
+.product-link{display:inline-flex;justify-content:center;align-items:center;min-height:45px;padding:11px 16px;text-align:center;font-size:.89rem;line-height:1.3;font-weight:750;border-radius:11px;transition:transform .16s ease,background .16s ease;white-space:normal}
+.product-link:hover{transform:translateY(-2px);color:#fff}
+.product-link-primary{background:linear-gradient(110deg,#168de4,#8659de);box-shadow:0 5px 22px #2479c833;color:#fff}
+.product-link-secondary{border:1px solid #7da9da85;background:#1a3057;color:#d5e8ff}
+@media(max-width:520px){.product-actions{flex-direction:column}.product-link{width:100%}}
 .release-note{border-left:3px solid #6d9efd;padding:7px 0 7px 14px;margin:25px 0 0;color:#aebfdd;font-size:.85rem;line-height:1.55}
 @media(max-width:800px){.product-card{grid-template-columns:1fr}.product-art{min-height:285px}.product-app{transform:scale(.9)}}
 @media(max-width:480px){.product-art{min-height:260px}.product-content{padding:24px}.product-content h3{font-size:1.9rem}.product-kind{font-size:.69rem}}
@@ -67,13 +74,17 @@ footer{margin-top:45px;border-top:1px solid #ffffff23;color:var(--muted);padding
     <div class="product-app"><div class="product-app-top"><span class="app-mark">B/S</span><span class="app-dots">● ● ●</span></div><div class="sheet-icon"><span class="sheet-fold"></span><span class="sheet-grid"></span><span class="sheet-extension">XLSX</span></div><span class="product-app-name">EXCEL CONVERTER</span></div>
   </div>
   <div class="product-content">
-    <div class="product-kind"><span class="product-status-dot" aria-hidden="true"></span> Программа создана · публикация файла пока не открыта</div>
-    <h3 id="converter-title">B/S Excel Converter</h3>
-    <p class="product-description">Фирменный локальный инструмент для преобразования табличных файлов в формат XLSX. Создан, чтобы упростить повседневную работу с электронными таблицами.</p>
+    <div class="product-kind"><span class="product-status-dot" aria-hidden="true"></span> Доступен бесплатно · билд 2.1.1</div>
+    <h3 id="converter-title">B/S Excel Converter <span class="version-tag">2.1.1</span></h3>
+    <p class="product-description">Конвертер XLSM → XLSX: удаляет VBA-макросы и позволяет по выбору убрать лист «Предупреждение», раскрыть скрытые листы и выбрать первый отображаемый лист.</p>
     <div class="product-features" aria-label="Особенности программы">
-      <span>Формат XLSX</span><span>Локальная обработка</span><span>Русский интерфейс</span>
+      <span>XLSM → XLSX</span><span>Без макросов</span><span>Локально в браузере</span>
     </div>
-    <p class="release-note">Сейчас это карточка проекта, а не страница скачивания. Файл программы будет опубликован отдельно после выбора и проверки финальной версии.</p>
+    <div class="product-actions" aria-label="Запуск и скачивание конвертера">
+      <a class="product-link product-link-primary" href="apps/BS_Excel_Converter_2_1_1.html" target="_blank" rel="noopener noreferrer">↗ Запустить в браузере</a>
+      <a class="product-link product-link-secondary" href="apps/BS_Excel_Converter_2_1_1.html" download="BS_Excel_Converter_2_1_1.html">↓ Скачать программу (.html)</a>
+    </div>
+    <p class="release-note">Файл работает без установки и интернета после скачивания. Обработка таблиц происходит локально. При конвертации макросы удаляются; исходные XLSM лучше сохранять отдельно.</p>
   </div>
 </article>
 </section>
