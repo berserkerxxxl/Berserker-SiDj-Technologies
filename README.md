@@ -4,21 +4,21 @@
 
 Независимая неформальная творческая IT-лаборатория: локальные программы, преобразование файлов, браузерные расширения и ИИ-автоматизация.
 
-![Фирменный знак Berserker & SiDj Technologies](assets/berserker-sidj-logo.svg)
+<img src="assets/berserker-mage-official.jpg" alt="Фирменная эмблема Berserker & SiDj Technologies — берсерк и маг с буквами B/S" width="520">
 
 - **Название:** Berserker & SiDj Technologies
 - **Русское написание:** Берсеркер и СиДжи Технологии
 - **Дата основания творческого проекта (со слов основателя):** 20 октября 2026 года
 - **Публичный паспорт:** [BRAND.md](BRAND.md)
-- **Сайт:** https://berserkerxxxl.github.io/Berserker-SiDj-Technologies/ (после включения GitHub Pages)
+- **Сайт:** https://berserkerxxxl.github.io/Berserker-SiDj-Technologies/
 
 ## О сайте
 
-Сайт статический: `index.html` и SVG в папке `assets/`. Для включения бесплатного GitHub Pages откройте **Settings → Pages**, выберите **Deploy from a branch → main → /(root)** и нажмите **Save**.
+Сайт статический и публикуется через бесплатный GitHub Pages из ветки `main`, папки `/(root)`.
 
 ## Фирменные изображения
 
-В этом репозитории опубликована векторная SVG-адаптация неонового знака. Исходное растровое изображение сохранено у основателя проекта и может быть добавлено отдельно.
+Главная фирменная эмблема с берсерком и магом — [оригинальный JPG 1536×1536](assets/berserker-mage-official.jpg), предоставленный основателем проекта 22 октября 2026 года. Дополнительная векторная адаптация B/S — [SVG](assets/berserker-sidj-logo.svg).
 
 ## Правовой статус
 
