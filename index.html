@@ -58,6 +58,19 @@ section{padding:60px 0}.eyebrow{text-transform:uppercase;font-size:.79rem;font-w
 .contact-email{color:#f2f8ff;font-size:clamp(1rem,2.7vw,1.45rem);font-weight:780;letter-spacing:-.015em;overflow-wrap:anywhere;text-decoration:underline;text-underline-offset:5px;text-decoration-color:#719fe37e}
 .contact-email:hover{color:#85d2ff}
 @media(max-width:550px){.contact-card{padding:20px;gap:14px}.contact-icon{width:48px;height:48px;flex-basis:48px;font-size:24px}}
+/* Mini project card */
+.mini-product{display:grid;grid-template-columns:90px minmax(0,1fr);gap:18px;margin-top:22px;padding:clamp(18px,3vw,30px);border-radius:20px;border:1px solid #6684b666;background:linear-gradient(130deg,#172547,#171d3a)}
+.mini-icon{display:grid;place-items:center;width:76px;height:76px;border-radius:19px;background:linear-gradient(130deg,#1b68af,#714eb0);font-size:2rem}
+.mini-tag{color:#98c8ff;font-size:.76rem;font-weight:800;text-transform:uppercase;letter-spacing:.12em;margin-bottom:8px}
+.mini-product h3{font-size:clamp(1.3rem,3.5vw,1.75rem);margin:0 0 9px;line-height:1.22}
+.mini-product p{color:#c3d0e8;margin:0 0 17px}
+.mini-guide{background:#253d6069;border:1px solid #607ca25c;padding:18px;border-radius:13px;color:#d4e3f7;font-size:.9rem}
+.mini-guide ol{padding-left:23px;margin:10px 0 0}.mini-guide li{margin:5px 0}
+.mini-product .mini-disclaimer{font-size:.83rem;color:#9eafca;margin:16px 0}
+.mini-links{display:flex;flex-wrap:wrap;gap:9px}
+.mini-links a{padding:9px 13px;border:1px solid #6c9ccc70;border-radius:10px;background:#25426a85;text-decoration:none;color:#d7e9ff;font-size:.83rem;font-weight:750}
+.mini-links a:hover{background:#355b94;color:#fff}
+@media(max-width:600px){.mini-product{grid-template-columns:1fr}.mini-icon{width:58px;height:58px;font-size:1.6rem}}
 /* Useful knowledge base */
 .useful-section{scroll-margin-top:24px}
 .tip-card{margin-top:26px;padding:clamp(20px,4vw,33px);border:1px solid #6f93c766;border-radius:22px;background:linear-gradient(128deg,#102448,#111e36 60%,#1d1c3f);box-shadow:0 15px 48px #01071242}
@@ -119,6 +132,29 @@ footer{margin-top:45px;border-top:1px solid #ffffff23;color:var(--muted);padding
       <a class="product-link product-link-secondary" href="apps/BS_Excel_Converter_2_1_1.html" download="BS_Excel_Converter_2_1_1.html">↓ Скачать программу (.html)</a>
     </div>
     <p class="release-note">Файл работает без установки и интернета после скачивания. Обработка таблиц происходит локально. При конвертации макросы удаляются; исходные XLSM лучше сохранять отдельно.</p>
+  </div>
+</article>
+<article class="mini-product" id="limits-howto" aria-labelledby="limits-title">
+  <div class="mini-icon" aria-hidden="true">📊</div>
+  <div class="mini-product-body">
+    <div class="mini-tag">Пользовательский скрипт · 2.7 Mini</div>
+    <h3 id="limits-title">ChatGPT — панель лимитов Work/Codex</h3>
+    <p>Мини-панель с оценкой оставшихся лимитов, временем сброса по Москве и переключателем навигатора длинных чатов. Разработка для Tampermonkey, неофициальное расширение интерфейса ChatGPT.</p>
+    <div class="mini-guide"><strong>Установка через Tampermonkey:</strong>
+      <ol>
+        <li>Установить Tampermonkey для своего браузера из официального магазина.</li>
+        <li>Открыть панель Tampermonkey и создать новый пользовательский скрипт.</li>
+        <li>Вставить исходный код версии 2.7 Mini, полученный у автора, и сохранить его.</li>
+        <li>Включить скрипт, открыть ChatGPT в браузере и обновить страницу.</li>
+      </ol>
+    </div>
+    <p class="mini-disclaimer">Скрипт не увеличивает лимиты и не меняет подписку. Показатели зависят от доступности данных сервиса. Исходный файл для публичной установки пока не размещён.</p>
+    <div class="mini-links">
+      <a href="https://www.tampermonkey.net/" target="_blank" rel="noopener noreferrer">Tampermonkey ↗</a>
+      <a href="https://chromewebstore.google.com/detail/tampermonkey/dhdgffkkebhmkfjojejmpbldmpobfkfo" target="_blank" rel="noopener noreferrer">Chrome / Chromium ↗</a>
+      <a href="https://addons.mozilla.org/ru/firefox/addon/tampermonkey/" target="_blank" rel="noopener noreferrer">Firefox ↗</a>
+      <a href="https://www.tampermonkey.net/faq.php?q=Q102" target="_blank" rel="noopener noreferrer">Официальная инструкция ↗</a>
+    </div>
   </div>
 </article>
 </section>
