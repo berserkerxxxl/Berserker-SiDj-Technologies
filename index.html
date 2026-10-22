@@ -57,6 +57,10 @@ section{padding:60px 0}.eyebrow{text-transform:uppercase;font-size:.79rem;font-w
 .contact-label{margin:0 0 8px;color:#bbcee9;font-size:.9rem;line-height:1.55}
 .contact-email{color:#f2f8ff;font-size:clamp(1rem,2.7vw,1.45rem);font-weight:780;letter-spacing:-.015em;overflow-wrap:anywhere;text-decoration:underline;text-underline-offset:5px;text-decoration-color:#719fe37e}
 .contact-email:hover{color:#85d2ff}
+.contact-methods{display:flex;flex-direction:column;gap:18px}
+.contact-method{display:flex;flex-direction:column;gap:4px}
+.contact-method-label{color:#99b8df;font-weight:750;font-size:.76rem;text-transform:uppercase;letter-spacing:.1em}
+.contact-method a{width:fit-content;max-width:100%}
 @media(max-width:550px){.contact-card{padding:20px;gap:14px}.contact-icon{width:48px;height:48px;flex-basis:48px;font-size:24px}}
 /* Mini project card */
 .mini-product{display:grid;grid-template-columns:90px minmax(0,1fr);gap:18px;margin-top:22px;padding:clamp(18px,3vw,30px);border-radius:20px;border:1px solid #6684b666;background:linear-gradient(130deg,#172547,#171d3a)}
@@ -188,7 +192,10 @@ footer{margin-top:45px;border-top:1px solid #ffffff23;color:var(--muted);padding
     <div class="contact-icon" aria-hidden="true">✉</div>
     <div class="contact-content">
       <p class="contact-label">Пишите по вопросам наших разработок и сотрудничества</p>
-      <a class="contact-email" href="mailto:berserkerxxxl@gmail.com">berserkerxxxl@gmail.com ↗</a>
+      <div class="contact-methods">
+        <div class="contact-method"><span class="contact-method-label">Email</span><a class="contact-email" href="mailto:berserkerxxxl@gmail.com">berserkerxxxl@gmail.com ↗</a></div>
+        <div class="contact-method"><span class="contact-method-label">Telegram</span><a class="contact-email" href="https://t.me/berserkerxxxl" target="_blank" rel="noopener noreferrer">@berserkerxxxl ↗</a></div>
+      </div>
     </div>
   </div>
 </section></main>
@@ -197,5 +204,5 @@ footer{margin-top:45px;border-top:1px solid #ffffff23;color:var(--muted);padding
 <img class="footer-badge" src="assets/berserker-sidj-badge.svg" alt="Круглый фирменный знак B/S" width="88" height="88" loading="lazy">
 <span class="footer-wordmark"><strong>Berserker &amp; SiDj Technologies</strong><small>СОЗИДАЕМ • АВТОМАТИЗИРУЕМ • УПРОЩАЕМ</small></span>
 </a>
-<div class="footer-meta"><a class="footer-email" href="mailto:berserkerxxxl@gmail.com">✉ berserkerxxxl@gmail.com</a><span class="footer-copy">© 2026 Berserker &amp; SiDj Technologies · Творческий проект</span></div>
+<div class="footer-meta"><a class="footer-email" href="mailto:berserkerxxxl@gmail.com">✉ berserkerxxxl@gmail.com</a><a class="footer-email" href="https://t.me/berserkerxxxl" target="_blank" rel="noopener noreferrer">✈ Telegram: @berserkerxxxl</a><span class="footer-copy">© 2026 Berserker &amp; SiDj Technologies · Творческий проект</span></div>
 </footer></body></html>
