@@ -77,22 +77,6 @@ section{padding:60px 0}.eyebrow{text-transform:uppercase;font-size:.79rem;font-w
 @media(max-width:600px){.mini-product{grid-template-columns:1fr}.mini-icon{width:58px;height:58px;font-size:1.6rem}}
 /* Useful knowledge base */
 .useful-section{scroll-margin-top:24px}
-.tip-card{margin-top:26px;padding:clamp(20px,4vw,33px);border:1px solid #6f93c766;border-radius:22px;background:linear-gradient(128deg,#102448,#111e36 60%,#1d1c3f);box-shadow:0 15px 48px #01071242}
-.tip-tag{color:#98c6ff;text-transform:uppercase;font-size:.76rem;letter-spacing:.12em;font-weight:800;margin-bottom:17px}
-.tip-header{display:flex;align-items:start;gap:17px}
-.tip-symbol{display:grid;place-items:center;width:65px;height:65px;flex-shrink:0;border-radius:18px;background:linear-gradient(130deg,#168de4,#7456d5);font-size:2rem}
-.tip-header h3{font-size:clamp(1.25rem,3.5vw,1.7rem);line-height:1.2;margin:4px 0 9px}
-.tip-header p{margin:0;color:#c2d1e9}
-.tip-steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:11px;margin:25px 0}
-.tip-steps>div{background:#25406469;border:1px solid #678cbd58;border-radius:13px;padding:16px}
-.tip-steps strong{display:block;color:#ebf5ff;margin-bottom:7px;font-size:.92rem}
-.tip-steps span{color:#c9d8ed;font-size:.86rem;line-height:1.6}
-.tip-note{border-left:3px solid #7fa9ef;padding-left:15px;color:#bed0eb;font-size:.88rem;margin:0 0 22px}
-.tip-actions{display:flex;flex-wrap:wrap;gap:11px}
-.tip-actions a{display:inline-block;padding:10px 15px;border-radius:10px;border:1px solid #789dd179;background:#24456f6d;color:#e0f0ff;text-decoration:none;font-weight:750;font-size:.87rem}
-.tip-actions a:hover{background:#2b568c;color:#fff}
-.tip-legal{color:#9fb3d2;font-size:.79rem;line-height:1.55;margin:18px 0 0}
-@media(max-width:750px){.tip-steps{grid-template-columns:1fr}.tip-header{align-items:flex-start}.tip-symbol{height:48px;width:48px;font-size:1.5rem;flex-basis:48px}}
 .passport{display:grid;grid-template-columns:1.1fr .9fr;gap:24px;background:#11213a;border:1px solid #6a7e9957;border-radius:20px;padding:28px;margin-top:23px}.passport dl{margin:0}.passport dl>div{border-bottom:1px solid #ffffff19;padding:10px 0}.passport dt{color:var(--muted);font-size:.82rem}.passport dd{font-weight:700;margin:3px 0}.passport p{color:var(--muted);margin-top:0}
 footer{margin-top:45px;border-top:1px solid #ffffff23;color:var(--muted);padding:30px 22px 45px;display:flex;justify-content:space-between;align-items:center;gap:24px;flex-wrap:wrap;font-size:.83rem}
 .hero-contact{margin:20px auto 0;font-size:clamp(.88rem,2.3vw,1rem);color:#d1deff;font-weight:650}
@@ -164,22 +148,6 @@ footer{margin-top:45px;border-top:1px solid #ffffff23;color:var(--muted);padding
   <span class="eyebrow">База знаний лаборатории</span>
   <h2 id="useful-title">Полезное</h2>
   <p class="lead">Практичные настройки, инструкции и небольшие лайфхаки, которые помогают пользоваться цифровыми инструментами.</p>
-  <article class="tip-card" aria-labelledby="telegram-tip-title">
-    <div class="tip-tag">Лайфхак № 1 · Telegram</div>
-    <div class="tip-header">
-      <span class="tip-symbol" aria-hidden="true">✈</span>
-      <div><h3 id="telegram-tip-title">Как настроить прокси в Telegram</h3>
-      <p>В официальном Telegram предусмотрена собственная настройка подключения через SOCKS5 или MTProto. Для неё понадобятся данные проверенного сервера.</p></div>
-    </div>
-    <div class="tip-steps">
-      <div><strong>Android</strong><span>Настройки → Данные и память → Настройки прокси → Добавить прокси</span></div>
-      <div><strong>iPhone</strong><span>Настройки → Данные и память → Прокси → Добавить прокси</span></div>
-      <div><strong>Telegram Desktop</strong><span>Настройки → Продвинутые настройки → Тип соединения → Использовать прокси</span></div>
-    </div>
-    <p class="tip-note">Для MTProto указывают сервер, порт и секрет; для SOCKS5 — сервер, порт и, при необходимости, логин и пароль. Не подключайтесь к неизвестным серверам: владелец прокси может видеть ваш IP-адрес и время подключения. Если Telegram уже работает, дополнительные настройки не обязательны.</p>
-    <div class="tip-actions"><a href="https://core.telegram.org/proxy" target="_blank" rel="noopener noreferrer">Официальная инструкция Telegram ↗</a><a href="https://telegram.org/apps" target="_blank" rel="noopener noreferrer">Приложения Telegram ↗</a></div>
-    <p class="tip-legal">Справочная информация о встроенной функции приложения, не предложение прокси-сервиса. Перед применением учитывайте действующее законодательство и условия обслуживания. Здесь не публикуются сторонние серверы и ключи доступа.</p>
-  </article>
 </section>
 <section id="identity"><span class="eyebrow">Публичная идентичность</span><h2>Паспорт бренда</h2><div class="passport"><dl><div><dt>Название</dt><dd>Berserker &amp; SiDj Technologies</dd></div><div><dt>По-русски</dt><dd>Берсеркер и СиДжи Технологии</dd></div><div><dt>Девиз</dt><dd>СОЗИДАЕМ • АВТОМАТИЗИРУЕМ • УПРОЩАЕМ</dd></div><div><dt>Дата основания творческого проекта</dt><dd><time datetime="2026-10-20">20 октября 2026 года</time></dd></div><div><dt>Аккаунт публикации</dt><dd><a href="https://github.com/berserkerxxxl">berserkerxxxl ↗</a></dd></div></dl><div><h3>О публикации</h3><p>На этой странице опубликованы название, девиз, основной герб с берсерком и магом и дополнительный круглый знак B/S. Дата публикации фиксируется историей GitHub-коммитов.</p><p>Это не официальная регистрация товарного знака или юридического лица. Подробности — в <a href="https://github.com/berserkerxxxl/Berserker-SiDj-Technologies/blob/main/BRAND.md" style="color:#8bd0ff">паспорте бренда ↗</a>.</p></div></div></section>
 <section id="contacts" class="contacts-section" aria-labelledby="contacts-heading">
