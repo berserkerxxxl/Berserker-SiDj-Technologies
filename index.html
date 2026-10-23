@@ -94,10 +94,17 @@ footer{margin-top:45px;border-top:1px solid #ffffff23;color:var(--muted);padding
 @media(max-width:650px){footer{align-items:flex-start;gap:18px;padding-bottom:38px}.footer-badge{width:72px;height:72px}.footer-brand{gap:12px}.footer-copy{text-align:left;max-width:none;padding-left:84px;width:100%}}
 @media(max-width:750px){header .wrap{align-items:flex-start}nav{flex-direction:column;gap:4px;text-align:right}.cards,.passport{grid-template-columns:1fr}.hero{padding-top:48px}section{padding:38px 0}}
 
-/* B/S background: barely visible cinematic streams of digits */
-#matrix-bg{position:fixed;inset:0;display:block;width:100%;height:100%;pointer-events:none;z-index:0;opacity:.44}
+/* Digital rain: soft blue-violet falling digits, CSS-only motion */
+#matrix-bg{position:fixed;inset:0;overflow:hidden;z-index:0;pointer-events:none;contain:layout paint;-webkit-mask-image:linear-gradient(to bottom,transparent,#000 9%,#000 94%,transparent);mask-image:linear-gradient(to bottom,transparent,#000 9%,#000 94%,transparent)}
+.matrix-stream{position:absolute;top:0;left:var(--x);display:block;white-space:pre;color:var(--ink);font:600 14px/1.75 ui-monospace,SFMono-Regular,Consolas,monospace;text-align:center;text-shadow:0 0 10px currentColor;opacity:0;will-change:transform;animation:bs-matrix-flow var(--duration) linear infinite;animation-delay:var(--delay)}
+@keyframes bs-matrix-flow{0%{transform:translate3d(0,-55vh,0);opacity:0}10%{opacity:.32}65%{opacity:.31}90%{opacity:.23}100%{transform:translate3d(var(--drift),145vh,0);opacity:0}}
 header,main,footer{position:relative;z-index:1}
-@media(prefers-reduced-motion:reduce){#matrix-bg{display:none}}
+html[data-matrix-motion="off"] .matrix-stream{animation-play-state:paused!important;opacity:0!important}
+@media(prefers-reduced-motion:reduce){html:not([data-matrix-motion="on"]) .matrix-stream{animation-play-state:paused!important;opacity:0!important}}
+@media(max-width:650px){.matrix-stream:nth-child(even){display:none}.matrix-stream{font-size:13px;line-height:1.8}}
+.matrix-toggle{display:inline-flex;align-items:center;justify-content:center;gap:7px;margin:0 auto 7px;padding:7px 13px;min-height:32px;border:1px solid #6681aa70;border-radius:999px;background:#132746b8;color:#a8c9ed;font:650 .75rem/1.3 system-ui,-apple-system,"Segoe UI",Arial,sans-serif;cursor:pointer}
+.matrix-toggle:hover{background:#213e64;color:#e0f2ff}
+.matrix-toggle:focus-visible{outline:2px solid #79bdff;outline-offset:3px}
 
 /* Visitor statistics — integrated with the B/S visual language */
 .site-visits{flex:0 0 100%;border-top:1px solid #ffffff20;margin-top:4px;padding-top:24px}
@@ -114,8 +121,196 @@ header,main,footer{position:relative;z-index:1}
 @media(max-width:420px){.visits-card{gap:10px;padding:14px 12px}.visits-symbol{flex-basis:35px;width:35px;height:35px}.visits-title{font-size:.87rem}.visits-figure{min-width:60px;padding:6px}.visits-figure img{height:29px}}
 </style>
 </head>
-<body><canvas id="matrix-bg" aria-hidden="true"></canvas><header><div class="wrap"><a href="#top" class="brand"><span class="mark">B/S</span><span>Berserker &amp; SiDj<small>TECHNOLOGIES</small></span></a><nav aria-label="Навигация"><a href="#about">О лаборатории</a><a href="#work">Направления</a><a href="#projects">Наши разработки</a><a href="#useful">Полезное</a><a href="#identity">Паспорт</a><a href="#contacts">Контакты</a></nav></div></header>
-<main class="wrap" id="top"><div class="hero"><span class="kicker">⚡ Независимая творческая IT-лаборатория</span><h1>Berserker &amp; SiDj<br>Technologies</h1><p class="intro">Превращаем сложные задачи в удобные инструменты. Экспериментируем с кодом, автоматизацией и искусственным интеллектом.</p><p class="slogan">Созидаем • Автоматизируем • Упрощаем</p><div class="actions"><a class="button" href="#identity">Паспорт бренда</a><a class="button alt" href="https://github.com/berserkerxxxl/Berserker-SiDj-Technologies">Репозиторий ↗</a></div><p class="hero-contact">✉ Контакты: <a href="mailto:berserkerxxxl@gmail.com">berserkerxxxl@gmail.com</a></p><img class="logo" src="assets/berserker-mage-official.jpg" alt="Официальный герб Berserker & SiDj Technologies: берсерк слева, маг справа, монограмма B/S, синяя и фиолетовая электроника" width="1536" height="1536" style="max-width:730px;object-fit:contain;background:white" onerror="this.onerror=null;this.src='assets/berserker-sidj-logo.svg';this.width=2040;this.height=770;this.style.maxWidth='1020px';this.style.background='none'"></div>
+<body><div id="matrix-bg" aria-hidden="true">
+<span class="matrix-stream" style="--x:1.70%;--duration:19s;--delay:-3.0s;--drift:-5px;--ink:#82bcf5">0
+1
+0
+0
+1
+1
+0</span>
+<span class="matrix-stream" style="--x:5.15%;--duration:32s;--delay:-20.3s;--drift:8px;--ink:#78cee6">1
+0
+0
+1
+0
+1</span>
+<span class="matrix-stream" style="--x:8.59%;--duration:31s;--delay:-8.6s;--drift:-11px;--ink:#b89bf6">1
+0
+1
+0
+0
+1
+0</span>
+<span class="matrix-stream" style="--x:12.04%;--duration:30s;--delay:-25.0s;--drift:14px;--ink:#83dacd">1
+0
+1
+0
+1
+1
+0</span>
+<span class="matrix-stream" style="--x:15.49%;--duration:29s;--delay:-13.3s;--drift:-17px;--ink:#92beff">1
+1
+0
+0
+1
+0</span>
+<span class="matrix-stream" style="--x:18.93%;--duration:28s;--delay:-30.6s;--drift:20px;--ink:#82bcf5">1
+0
+1
+1
+0
+1
+1</span>
+<span class="matrix-stream" style="--x:22.38%;--duration:27s;--delay:-18.0s;--drift:-7px;--ink:#78cee6">0
+1
+1
+0
+1
+1
+0</span>
+<span class="matrix-stream" style="--x:25.82%;--duration:26s;--delay:-6.3s;--drift:10px;--ink:#b89bf6">1
+0
+1
+1
+0
+1</span>
+<span class="matrix-stream" style="--x:29.27%;--duration:25s;--delay:-23.6s;--drift:-13px;--ink:#83dacd">0
+1
+1
+0
+0
+1
+1</span>
+<span class="matrix-stream" style="--x:32.72%;--duration:24s;--delay:-11.0s;--drift:16px;--ink:#92beff">0
+0
+1
+1
+0
+1
+1</span>
+<span class="matrix-stream" style="--x:36.16%;--duration:23s;--delay:-28.3s;--drift:-19px;--ink:#82bcf5">0
+1
+1
+0
+1
+0</span>
+<span class="matrix-stream" style="--x:39.61%;--duration:22s;--delay:-16.6s;--drift:6px;--ink:#78cee6">0
+1
+0
+0
+1
+0
+1</span>
+<span class="matrix-stream" style="--x:43.06%;--duration:21s;--delay:-4.0s;--drift:-9px;--ink:#b89bf6">0
+1
+0
+0
+1
+1
+0</span>
+<span class="matrix-stream" style="--x:46.50%;--duration:20s;--delay:-21.3s;--drift:12px;--ink:#83dacd">1
+0
+0
+1
+0
+1</span>
+<span class="matrix-stream" style="--x:49.95%;--duration:19s;--delay:-9.6s;--drift:-15px;--ink:#92beff">1
+0
+1
+0
+0
+1
+0</span>
+<span class="matrix-stream" style="--x:53.40%;--duration:32s;--delay:-26.0s;--drift:18px;--ink:#82bcf5">1
+0
+1
+0
+1
+1
+0</span>
+<span class="matrix-stream" style="--x:56.84%;--duration:31s;--delay:-14.3s;--drift:-5px;--ink:#78cee6">1
+1
+0
+0
+1
+0</span>
+<span class="matrix-stream" style="--x:60.29%;--duration:30s;--delay:-31.6s;--drift:8px;--ink:#b89bf6">1
+0
+1
+1
+0
+1
+1</span>
+<span class="matrix-stream" style="--x:63.74%;--duration:29s;--delay:-19.0s;--drift:-11px;--ink:#83dacd">0
+1
+1
+0
+1
+1
+0</span>
+<span class="matrix-stream" style="--x:67.18%;--duration:28s;--delay:-7.3s;--drift:14px;--ink:#92beff">1
+0
+1
+1
+0
+1</span>
+<span class="matrix-stream" style="--x:70.63%;--duration:27s;--delay:-24.6s;--drift:-17px;--ink:#82bcf5">0
+1
+1
+0
+0
+1
+1</span>
+<span class="matrix-stream" style="--x:74.08%;--duration:26s;--delay:-12.0s;--drift:20px;--ink:#78cee6">0
+0
+1
+1
+0
+1
+1</span>
+<span class="matrix-stream" style="--x:77.52%;--duration:25s;--delay:-29.3s;--drift:-7px;--ink:#b89bf6">0
+1
+1
+0
+1
+0</span>
+<span class="matrix-stream" style="--x:80.97%;--duration:24s;--delay:-17.6s;--drift:10px;--ink:#83dacd">0
+1
+0
+0
+1
+0
+1</span>
+<span class="matrix-stream" style="--x:84.41%;--duration:23s;--delay:-5.0s;--drift:-13px;--ink:#92beff">0
+1
+0
+0
+1
+1
+0</span>
+<span class="matrix-stream" style="--x:87.86%;--duration:22s;--delay:-22.3s;--drift:16px;--ink:#82bcf5">1
+0
+0
+1
+0
+1</span>
+<span class="matrix-stream" style="--x:91.31%;--duration:21s;--delay:-10.6s;--drift:-19px;--ink:#78cee6">1
+0
+1
+0
+0
+1
+0</span>
+<span class="matrix-stream" style="--x:94.75%;--duration:20s;--delay:-27.0s;--drift:6px;--ink:#b89bf6">1
+0
+1
+0
+1
+1
+0</span>
+</div><header><div class="wrap"><a href="#top" class="brand"><span class="mark">B/S</span><span>Berserker &amp; SiDj<small>TECHNOLOGIES</small></span></a><nav aria-label="Навигация"><a href="#about">О лаборатории</a><a href="#work">Направления</a><a href="#projects">Наши разработки</a><a href="#useful">Полезное</a><a href="#identity">Паспорт</a><a href="#contacts">Контакты</a></nav></div></header>
+<main class="wrap" id="top"><div class="hero"><span class="kicker">⚡ Независимая творческая IT-лаборатория</span><h1>Berserker &amp; SiDj<br>Technologies</h1><p class="intro">Превращаем сложные задачи в удобные инструменты. Экспериментируем с кодом, автоматизацией и искусственным интеллектом.</p><p class="slogan">Созидаем • Автоматизируем • Упрощаем</p><div><button id="matrix-toggle" class="matrix-toggle" type="button" aria-label="Включить или выключить движущиеся цифры" aria-pressed="true">✦ Цифровой дождь: вкл</button></div><div class="actions"><a class="button" href="#identity">Паспорт бренда</a><a class="button alt" href="https://github.com/berserkerxxxl/Berserker-SiDj-Technologies">Репозиторий ↗</a></div><p class="hero-contact">✉ Контакты: <a href="mailto:berserkerxxxl@gmail.com">berserkerxxxl@gmail.com</a></p><img class="logo" src="assets/berserker-mage-official.jpg" alt="Официальный герб Berserker & SiDj Technologies: берсерк слева, маг справа, монограмма B/S, синяя и фиолетовая электроника" width="1536" height="1536" style="max-width:730px;object-fit:contain;background:white" onerror="this.onerror=null;this.src='assets/berserker-sidj-logo.svg';this.width=2040;this.height=770;this.style.maxWidth='1020px';this.style.background='none'"></div>
 <section id="about"><span class="eyebrow">О лаборатории</span><h2>Технологии с характером</h2><p class="lead">Berserker &amp; SiDj Technologies — неформальная творческая IT-лаборатория. Здесь идеи превращаются в практические инструменты: программы для локальной работы, обработка файлов, браузерные решения и автоматизация с помощью ИИ.</p></section>
 <section id="work"><span class="eyebrow">Что создаём</span><h2>Направления экспериментов</h2><div class="cards"><article class="card"><div class="emoji">⌨️</div><h3>Программы и утилиты</h3><p>Обработка данных, преобразование файлов, автоматизация регулярных операций.</p></article><article class="card"><div class="emoji">🧩</div><h3>Браузерные инструменты</h3><p>Расширения, надстройки и прототипы для комфортной цифровой среды.</p></article><article class="card"><div class="emoji">🤖</div><h3>ИИ и автоматизация</h3><p>Исследуем новые способы упрощать рутинные задачи и рабочие процессы.</p></article></div></section>
 <section id="projects" class="projects-section" aria-labelledby="projects-title">
@@ -210,83 +405,25 @@ header,main,footer{position:relative;z-index:1}
 </div>
 </footer>
 <script>
-/* B/S ambient Matrix: sparse, slow digit streams, power-efficient and decorative. */
+/* B/S digital rain switch: enabled by default, user can disable persistently. */
 (() => {
   'use strict';
-  const canvas = document.getElementById('matrix-bg');
-  if (!canvas || !canvas.getContext || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-  const ctx = canvas.getContext('2d', { alpha: true });
-  if (!ctx) return;
-
-  const digits = '0123456789';
-  const fpsInterval = 1000 / 22;
-  const columnsGap = 31;
-  let width = 0, height = 0, dpr = 1, streams = [], frame = 0, lastPaint = 0, active = true;
-
-  function resize() {
-    dpr = Math.min(window.devicePixelRatio || 1, 1.5);
-    width = window.innerWidth;
-    height = window.innerHeight;
-    canvas.width = Math.round(width * dpr);
-    canvas.height = Math.round(height * dpr);
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    const possible = Math.max(3, Math.floor(width / columnsGap));
-    streams = Array.from({ length: possible }, (_, i) => ({
-      x: i * columnsGap + 9,
-      y: Math.random() * (height + 400) - (height + 260),
-      speed: 9 + Math.random() * 17,
-      length: 3 + Math.floor(Math.random() * 6),
-      visible: Math.random() < .58,
-      violet: Math.random() < .24,
-      seed: Math.floor(Math.random() * digits.length)
-    }));
-    ctx.clearRect(0, 0, width, height);
+  const control = document.getElementById('matrix-toggle');
+  if (!control) return;
+  let choice = null;
+  try { choice = localStorage.getItem('bs-matrix-motion'); } catch (_) {}
+  let enabled = choice !== 'off';
+  function render() {
+    document.documentElement.setAttribute('data-matrix-motion', enabled ? 'on' : 'off');
+    control.setAttribute('aria-pressed', String(enabled));
+    control.textContent = enabled ? '✦ Цифровой дождь: вкл' : '✦ Цифровой дождь: выкл';
   }
-
-  function draw(time) {
-    if (!active) return;
-    frame = requestAnimationFrame(draw);
-    const deltaMs = time - lastPaint;
-    if (deltaMs < fpsInterval) return;
-    const dt = Math.min(deltaMs || fpsInterval, 150) / 1000;
-    lastPaint = time;
-    ctx.clearRect(0, 0, width, height);
-    ctx.font = '13px ui-monospace, SFMono-Regular, Consolas, monospace';
-    ctx.textAlign = 'center';
-
-    for (const stream of streams) {
-      stream.y += stream.speed * dt;
-      if (stream.y - stream.length * 23 > height) {
-        stream.y = -80 - Math.random() * height;
-        stream.visible = Math.random() < .58;
-        stream.seed = Math.floor(Math.random() * digits.length);
-      }
-      if (!stream.visible) continue;
-      for (let j = 0; j < stream.length; j++) {
-        const y = stream.y - j * 23;
-        if (y < -20 || y > height + 20) continue;
-        const opacity = (.19 - (j / stream.length) * .13).toFixed(3);
-        ctx.fillStyle = stream.violet ? 'rgba(168,135,244,' + opacity + ')' : 'rgba(111,209,201,' + opacity + ')';
-        const digit = digits[(stream.seed + j + Math.floor(time / (360 + (stream.seed % 4) * 85))) % 10];
-        ctx.fillText(digit, stream.x, y);
-      }
-    }
-  }
-
-  function visibility() {
-    active = !document.hidden;
-    if (active) {
-      lastPaint = performance.now();
-      cancelAnimationFrame(frame);
-      frame = requestAnimationFrame(draw);
-    } else {
-      cancelAnimationFrame(frame);
-    }
-  }
-  resize();
-  window.addEventListener('resize', resize, { passive: true });
-  document.addEventListener('visibilitychange', visibility);
-  frame = requestAnimationFrame(draw);
+  control.addEventListener('click', () => {
+    enabled = !enabled;
+    try { localStorage.setItem('bs-matrix-motion', enabled ? 'on' : 'off'); } catch (_) {}
+    render();
+  });
+  render();
 })();
 </script>
 </body></html>
