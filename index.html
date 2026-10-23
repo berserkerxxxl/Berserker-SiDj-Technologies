@@ -106,6 +106,7 @@ html[data-matrix-motion="off"] .matrix-stream{animation-play-state:paused!import
 .matrix-toggle:hover{background:#213e64;color:#e0f2ff}
 .matrix-toggle:focus-visible{outline:2px solid #79bdff;outline-offset:3px}
 
+.visits-figure [hidden]{display:none!important}
 /* Dual counters: same first-party B/S cards; only the numeric badge comes from each service */
 .visits-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px;max-width:1080px}
 .visits-grid .visits-card{max-width:none;min-width:0}
@@ -414,18 +415,16 @@ html[data-matrix-motion="off"] .matrix-stream{animation-play-state:paused!import
       </span>
       <div class="visits-body">
         <span class="visits-label">B/S · Аудитория</span>
-        <span class="visits-title">Уникальные*</span>
-        <span class="visits-date">Новый учёт с 23.10.2026</span>
+        <span class="visits-title">Новые посетители*</span>
+        <span class="visits-date">Учёт с 23.10.2026</span>
       </div>
       <span class="visits-figure" aria-label="Приблизительное число уникальных посетителей главной страницы">
-        <img id="bs-uniques-badge" src="https://counterapi.com/counter.svg?ns=berserkerxxxl.github.io&amp;action=view&amp;key=BS-home-unique-20261023&amp;unique=true&amp;style=flat&amp;label=%20&amp;labelColor=132743&amp;color=254c7b"
-             alt="Примерное количество уникальных посетителей" width="75" height="20" decoding="async" referrerpolicy="no-referrer"
-             onerror="this.hidden=true;this.nextElementSibling.hidden=false">
-        <span class="visits-error" hidden>Недоступно</span>
+        <img id="bs-uniques-badge" alt="Приблизительное количество новых посетителей в разных браузерах" width="86" height="20" decoding="async" referrerpolicy="no-referrer" hidden>
+        <span class="visits-error" id="bs-uniques-status" aria-live="polite">Загрузка…</span>
       </span>
     </div>
   </div>
-  <p class="visits-note">* Уникальные посетители считаются приблизительно: повторные заходы с одного устройства обычно не добавляют нового человека, а VPN, другой браузер или устройство могут повлиять на подсчёт.</p>
+  <p class="visits-note">* Считаем впервые открывшие сайт браузеры. Повторные заходы из того же браузера не увеличивают показатель. Другие устройства, приватный режим или очистка данных сайта могут учесть того же человека ещё раз.</p>
 </div>
 </footer>
 <script>
@@ -448,6 +447,57 @@ html[data-matrix-motion="off"] .matrix-stream{animation-play-state:paused!import
     render();
   });
   render();
+})();
+</script>
+<script>
+/* B/S first-time visitors: one increment per browser, without IP-based deduplication.
+   Public CountAPI stores only an aggregate; first-party localStorage stores the "seen" flag. */
+(() => {
+  'use strict';
+  const img = document.getElementById('bs-uniques-badge');
+  const status = document.getElementById('bs-uniques-status');
+  if (!img || !status) return;
+
+  const storageKey = 'bs_home_seen_unique_20261023_v2';
+  const counterKey = 'berserker_s idj_technologies_unique_home_v2_20261023'.replaceAll(' ', '');
+  const api = 'https://countapi.mileshilliard.com/api/v1/';
+  let storage = null;
+  try {
+    localStorage.setItem('bs_storage_test', '1');
+    localStorage.removeItem('bs_storage_test');
+    storage = localStorage;
+  } catch (_) {
+    try {
+      sessionStorage.setItem('bs_storage_test', '1');
+      sessionStorage.removeItem('bs_storage_test');
+      storage = sessionStorage;
+    } catch (_) {}
+  }
+
+  // Without storage, do not increment at all: repeated refreshes would inflate visitors.
+  if (!storage) {
+    status.textContent = 'Учёт недоступен';
+    return;
+  }
+  let counted = false;
+  try { counted = storage.getItem(storageKey) === 'counted'; } catch (_) {}
+  const action = counted ? 'get' : 'hit';
+  const url = api + action + '/' + counterKey +
+    '/shield?text=%20&bgcolor=254c7b&textcolor=ffffff&style=flat&v=' + Date.now();
+
+  img.addEventListener('load', () => {
+    if (!counted) {
+      try { storage.setItem(storageKey, 'counted'); } catch (_) {}
+    }
+    img.hidden = false;
+    status.hidden = true;
+  }, { once: true });
+  img.addEventListener('error', () => {
+    img.hidden = true;
+    status.textContent = 'Статистика недоступна';
+    status.hidden = false;
+  }, { once: true });
+  img.src = url;
 })();
 </script>
 </body></html>
