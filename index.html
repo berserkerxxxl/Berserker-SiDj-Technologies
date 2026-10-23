@@ -179,60 +179,18 @@ footer{margin-top:45px;border-top:1px solid #ffffff23;color:var(--muted);padding
 </a>
 <div class="footer-meta"><a class="footer-email" href="mailto:berserkerxxxl@gmail.com">✉ berserkerxxxl@gmail.com</a><a class="footer-email" href="https://t.me/berserkerxxxl" target="_blank" rel="noopener noreferrer">✈ Telegram: @berserkerxxxl</a><span class="footer-copy">© 2026 Berserker &amp; SiDj Technologies · Творческий проект</span></div>
 
-<div class="site-visits" id="site-visit-stats" aria-label="Статистика посещаемости главной страницы">
+<div class="site-visits" id="site-visit-stats" aria-label="Статистика просмотров главной страницы">
   <span class="site-visits-heading">📊 Посещения · с 23.10.2026</span>
-  <span class="site-visits-item">👁 Просмотров <span class="counterapi" id="bs-page-views" aria-live="polite" aria-label="Общее число просмотров">…</span></span>
-  <span class="site-visits-item">👤 Уникальных <span class="counterapi" id="bs-unique-visitors" aria-live="polite" aria-label="Приблизительное число уникальных посетителей">…</span></span>
-  <span class="site-visits-note" id="bs-visit-note" title="Повторные открытия увеличивают просмотры, но один и тот же человек обычно считается одним уникальным посетителем. Сервис может фильтровать быстрые повторы.">* уникальные — приблизительно</span>
+  <span class="site-visits-item">👁 Просмотры за сегодня / всего:
+    <img id="bs-hits-badge"
+      src="https://hits.sh/berserkerxxxl.github.io/Berserker-SiDj-Technologies.svg?view=today-total&amp;style=flat-square&amp;label=visits&amp;color=377bc8&amp;labelColor=1c3357"
+      alt="Счётчик просмотров за сегодня и за всё время" width="144" height="20"
+      decoding="async" referrerpolicy="no-referrer"
+      onerror="this.hidden=true;document.getElementById('bs-visit-error').hidden=false">
+    <span id="bs-visit-error" hidden>Сервис статистики недоступен</span>
+  </span>
+  <span class="site-visits-note">Счётчик внешнего сервиса · без скриптов</span>
 </div>
 </footer>
-<script>
-/* B/S Visitor Counter: native fetch, no jQuery or external script dependencies. */
-(() => {
-  'use strict';
-  const views = document.getElementById('bs-page-views');
-  const unique = document.getElementById('bs-unique-visitors');
-  const note = document.getElementById('bs-visit-note');
-  if (!views || !unique || !note) return;
 
-  const endpoint = 'https://counterapi.com/api/berserkerxxxl.github.io/view/Berserker-SiDj-Technologies-home';
-  const format = value => Number(value).toLocaleString('ru-RU');
-  const read = async (params = '') => {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 10000);
-    try {
-      const response = await fetch(endpoint + params, {
-        method: 'GET',
-        cache: 'no-store',
-        mode: 'cors',
-        signal: controller.signal
-      });
-      if (!response.ok) throw new Error('CounterAPI HTTP ' + response.status);
-      const data = await response.json();
-      if (!Number.isFinite(Number(data.value))) throw new Error('Некорректное значение счётчика');
-      return Number(data.value);
-    } finally {
-      clearTimeout(timeout);
-    }
-  };
-
-  // The first request records exactly one page view; the second only reads unique users.
-  (async () => {
-    try {
-      views.textContent = format(await read());
-    } catch (error) {
-      views.textContent = '—';
-      note.textContent = 'Статистика временно недоступна';
-      console.warn('B/S: page-view counter unavailable', error);
-    }
-    try {
-      unique.textContent = format(await read('?readOnly=true&unique=true'));
-    } catch (error) {
-      unique.textContent = '—';
-      if (views.textContent !== '—') note.textContent = 'Уникальные посетители временно недоступны';
-      console.warn('B/S: unique-visitor counter unavailable', error);
-    }
-  })();
-})();
-</script>
 </body></html>
