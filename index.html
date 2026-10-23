@@ -106,6 +106,11 @@ html[data-matrix-motion="off"] .matrix-stream{animation-play-state:paused!import
 .matrix-toggle:hover{background:#213e64;color:#e0f2ff}
 .matrix-toggle:focus-visible{outline:2px solid #79bdff;outline-offset:3px}
 
+/* Dual counters: same first-party B/S cards; only the numeric badge comes from each service */
+.visits-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px;max-width:1080px}
+.visits-grid .visits-card{max-width:none;min-width:0}
+.visits-note{margin:9px 3px 0;color:#879fc3;font-size:.74rem;line-height:1.55}
+@media(max-width:750px){.visits-grid{grid-template-columns:1fr}}
 /* Visitor statistics — integrated with the B/S visual language */
 .site-visits{flex:0 0 100%;border-top:1px solid #ffffff20;margin-top:4px;padding-top:24px}
 .visits-card{position:relative;display:flex;align-items:center;gap:18px;max-width:525px;min-height:92px;padding:17px 20px;border:1px solid #5b8cc262;border-radius:17px;background:linear-gradient(120deg,#172b4cc9,#1b2142cb);box-shadow:inset 0 1px 0 #ffffff0c,0 12px 28px #00000020;overflow:hidden}
@@ -386,22 +391,41 @@ html[data-matrix-motion="off"] .matrix-stream{animation-play-state:paused!import
 <div class="footer-meta"><a class="footer-email" href="mailto:berserkerxxxl@gmail.com">✉ berserkerxxxl@gmail.com</a><a class="footer-email" href="https://t.me/berserkerxxxl" target="_blank" rel="noopener noreferrer">✈ Telegram: @berserkerxxxl</a><span class="footer-copy">© 2026 Berserker &amp; SiDj Technologies · Творческий проект</span></div>
 
 <div class="site-visits" id="site-visit-stats" aria-label="Посещаемость сайта">
-  <div class="visits-card">
-    <span class="visits-symbol" aria-hidden="true">
-      <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>
-    </span>
-    <div class="visits-body">
-      <span class="visits-label">B/S · Статистика</span>
-      <span class="visits-title">Всего просмотров</span>
-      <span class="visits-date">Считаем с 23.10.2026</span>
+  <div class="visits-grid">
+    <div class="visits-card">
+      <span class="visits-symbol" aria-hidden="true">
+        <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>
+      </span>
+      <div class="visits-body">
+        <span class="visits-label">B/S · Статистика</span>
+        <span class="visits-title">Всего просмотров</span>
+        <span class="visits-date">Считаем с 23.10.2026</span>
+      </div>
+      <span class="visits-figure" aria-label="Счётчик просмотров главной страницы">
+        <img src="https://hits.sh/berserkerxxxl.github.io/Berserker-SiDj-Technologies.svg?view=total&amp;style=flat-square&amp;label=%20&amp;color=254c7b&amp;labelColor=132743"
+             alt="Количество просмотров" width="58" height="20" decoding="async" referrerpolicy="no-referrer"
+             onerror="this.hidden=true;this.nextElementSibling.hidden=false">
+        <span class="visits-error" hidden>Нет данных</span>
+      </span>
     </div>
-    <span class="visits-figure" aria-label="Счётчик общих просмотров главной страницы">
-      <img src="https://hits.sh/berserkerxxxl.github.io/Berserker-SiDj-Technologies.svg?view=total&amp;style=flat-square&amp;label=%20&amp;color=254c7b&amp;labelColor=132743"
-           alt="Количество просмотров" width="58" height="20" decoding="async" referrerpolicy="no-referrer"
-           onerror="this.hidden=true;this.nextElementSibling.hidden=false">
-      <span class="visits-error" hidden>Нет данных</span>
-    </span>
+    <div class="visits-card">
+      <span class="visits-symbol" aria-hidden="true">
+        <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M16 19v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="9.5" cy="7" r="4"/><path d="M20 19v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      </span>
+      <div class="visits-body">
+        <span class="visits-label">B/S · Аудитория</span>
+        <span class="visits-title">Уникальные*</span>
+        <span class="visits-date">Новый учёт с 23.10.2026</span>
+      </div>
+      <span class="visits-figure" aria-label="Приблизительное число уникальных посетителей главной страницы">
+        <img id="bs-uniques-badge" src="https://counterapi.com/counter.svg?ns=berserkerxxxl.github.io&amp;action=view&amp;key=BS-home-unique-20261023&amp;unique=true&amp;style=flat&amp;label=%20&amp;labelColor=132743&amp;color=254c7b"
+             alt="Примерное количество уникальных посетителей" width="75" height="20" decoding="async" referrerpolicy="no-referrer"
+             onerror="this.hidden=true;this.nextElementSibling.hidden=false">
+        <span class="visits-error" hidden>Недоступно</span>
+      </span>
+    </div>
   </div>
+  <p class="visits-note">* Уникальные посетители считаются приблизительно: повторные заходы с одного устройства обычно не добавляют нового человека, а VPN, другой браузер или устройство могут повлиять на подсчёт.</p>
 </div>
 </footer>
 <script>
