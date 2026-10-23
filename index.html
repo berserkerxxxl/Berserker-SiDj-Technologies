@@ -110,12 +110,12 @@ html[data-matrix-motion="off"] .matrix-stream{animation-play-state:paused!import
 /* Dual counters: same first-party B/S cards; only the numeric badge comes from each service */
 .visits-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px;max-width:1080px}
 .visits-grid .visits-card{max-width:none;min-width:0}
-.visits-figure-unique{min-width:68px;padding:7px 12px}
-.visits-figure-unique .visits-number{display:block;color:#f5faff;font-weight:900;font-size:1.75rem;line-height:1.25;letter-spacing:-.03em;font-variant-numeric:tabular-nums;text-shadow:0 0 16px #67baff35}
+.visits-figure-unique{min-width:46px;padding:0}
+.visits-figure-unique .visits-number{display:block;color:#f5faff;font:750 1.2rem/1.25 system-ui,-apple-system,"Segoe UI",Arial,sans-serif;letter-spacing:0;font-variant-numeric:tabular-nums}
 .visits-figure-unique .visits-number[hidden]{display:none}
-.visits-unique-fallback{position:relative;display:block;height:30px;max-width:130px;overflow:hidden;border-radius:6px}
+.visits-unique-fallback{position:relative;display:block;height:30px;max-width:130px;overflow:hidden;border-radius:0}
 .visits-unique-fallback[hidden]{display:none!important}
-.visits-unique-fallback img{position:absolute;top:0;right:0;display:block!important;width:auto;height:30px;max-width:none;transform:none}
+.visits-unique-fallback img{position:absolute;top:0;right:0;display:block!important;width:auto;height:30px;max-width:none;transform:none;mix-blend-mode:screen}
 .visits-unique-fallback img[hidden]{display:none!important}
 @media(max-width:750px){.visits-grid{grid-template-columns:1fr}}
 /* Visitor statistics — integrated with the B/S visual language */
@@ -127,10 +127,10 @@ html[data-matrix-motion="off"] .matrix-stream{animation-play-state:paused!import
 .visits-label{font-size:.7rem;line-height:1.2;text-transform:uppercase;letter-spacing:.13em;color:#8bbce9;font-weight:850}
 .visits-title{font-size:.97rem;font-weight:750;color:#edf5ff;line-height:1.35}
 .visits-date{font-size:.73rem;color:#a4b9d9}
-.visits-figure{display:grid;place-items:center;flex:0 0 auto;min-width:74px;min-height:48px;margin-left:auto;padding:7px 10px;border-radius:12px;border:1px solid #75a7df43;background:#0c1c36a6}
-.visits-figure img{display:block;max-width:none;width:auto;height:34px;border-radius:4px;vertical-align:middle}
+.visits-figure{display:flex;align-items:center;justify-content:flex-end;flex:0 0 auto;min-width:46px;min-height:30px;margin-left:auto;padding:0;border:0;border-radius:0;background:transparent;box-shadow:none}
+.visits-figure img{display:block;max-width:none;width:auto;height:30px;border-radius:0;vertical-align:middle;mix-blend-mode:screen}
 .visits-error{font-size:.74rem;color:#d6b4c1}
-@media(max-width:420px){.visits-card{gap:10px;padding:14px 12px}.visits-symbol{flex-basis:35px;width:35px;height:35px}.visits-title{font-size:.87rem}.visits-figure{min-width:60px;padding:6px}.visits-figure img{height:29px}}
+@media(max-width:420px){.visits-card{gap:10px;padding:14px 12px}.visits-symbol{flex-basis:35px;width:35px;height:35px}.visits-title{font-size:.87rem}.visits-figure{min-width:40px;padding:0}.visits-figure img{height:29px}.visits-figure-unique .visits-number{font-size:1.15rem}}
 </style>
 </head>
 <body><div id="matrix-bg" aria-hidden="true">
@@ -409,7 +409,7 @@ html[data-matrix-motion="off"] .matrix-stream{animation-play-state:paused!import
         <span class="visits-date">Считаем с 23.10.2026</span>
       </div>
       <span class="visits-figure" aria-label="Счётчик просмотров главной страницы">
-        <img src="https://hits.sh/berserkerxxxl.github.io/Berserker-SiDj-Technologies.svg?view=total&amp;style=flat-square&amp;label=%20&amp;color=254c7b&amp;labelColor=132743"
+        <img src="https://hits.sh/berserkerxxxl.github.io/Berserker-SiDj-Technologies.svg?view=total&amp;style=flat-square&amp;label=%20&amp;color=000000&amp;labelColor=000000"
              alt="Количество просмотров" width="58" height="20" decoding="async" referrerpolicy="no-referrer"
              onerror="this.hidden=true;this.nextElementSibling.hidden=false">
         <span class="visits-error" hidden>Нет данных</span>
@@ -491,7 +491,7 @@ html[data-matrix-motion="off"] .matrix-stream{animation-play-state:paused!import
   try { counted = storage.getItem(storageKey) === 'counted'; } catch (_) {}
   const action = counted ? 'get' : 'hit';
   const url = api + action + '/' + counterKey +
-    '/shield?text=%20&bgcolor=254c7b&textcolor=ffffff&style=flat&v=' + Date.now();
+    '/shield?text=%20&bgcolor=000000&textcolor=ffffff&style=flat&v=' + Date.now();
 
   img.addEventListener('load', async () => {
     if (!counted) {
