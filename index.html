@@ -94,16 +94,27 @@ footer{margin-top:45px;border-top:1px solid #ffffff23;color:var(--muted);padding
 @media(max-width:650px){footer{align-items:flex-start;gap:18px;padding-bottom:38px}.footer-badge{width:72px;height:72px}.footer-brand{gap:12px}.footer-copy{text-align:left;max-width:none;padding-left:84px;width:100%}}
 @media(max-width:750px){header .wrap{align-items:flex-start}nav{flex-direction:column;gap:4px;text-align:right}.cards,.passport{grid-template-columns:1fr}.hero{padding-top:48px}section{padding:38px 0}}
 
-/* B/S — live site visitor statistics */
-.site-visits{flex:0 0 100%;display:flex;align-items:center;justify-content:center;flex-wrap:wrap;column-gap:22px;row-gap:8px;border-top:1px solid #ffffff21;padding-top:17px;margin-top:1px}
-.site-visits-heading{color:#92b7eb;font-size:.7rem;letter-spacing:.09em;text-transform:uppercase;font-weight:800}
-.site-visits-item{display:inline-flex;align-items:baseline;gap:8px;color:#d0ddf4;white-space:nowrap;font-size:.81rem}
-.site-visits .counterapi{display:inline-block;min-width:2ch;min-height:1.25em;color:#8dd1ff;font-variant-numeric:tabular-nums;font-weight:850;font-size:.95rem;line-height:1.3}
-.site-visits-note{color:#9dafcb;font-size:.72rem}
-@media(max-width:650px){.site-visits{justify-content:flex-start;column-gap:16px}.site-visits-heading{width:100%}}
+/* B/S background: barely visible cinematic streams of digits */
+#matrix-bg{position:fixed;inset:0;display:block;width:100%;height:100%;pointer-events:none;z-index:0;opacity:.44}
+header,main,footer{position:relative;z-index:1}
+@media(prefers-reduced-motion:reduce){#matrix-bg{display:none}}
+
+/* Visitor statistics — integrated with the B/S visual language */
+.site-visits{flex:0 0 100%;border-top:1px solid #ffffff20;margin-top:4px;padding-top:24px}
+.visits-card{position:relative;display:flex;align-items:center;gap:18px;max-width:525px;min-height:92px;padding:17px 20px;border:1px solid #5b8cc262;border-radius:17px;background:linear-gradient(120deg,#172b4cc9,#1b2142cb);box-shadow:inset 0 1px 0 #ffffff0c,0 12px 28px #00000020;overflow:hidden}
+.visits-card:before{content:"";position:absolute;inset:0 auto 0 0;width:3px;background:linear-gradient(#56b9ff,#a27cff)}
+.visits-symbol{display:grid;place-items:center;flex:0 0 43px;width:43px;height:43px;border:1px solid #688fc66b;border-radius:12px;background:linear-gradient(145deg,#235c9d65,#7347b655);color:#acd9ff}
+.visits-body{display:flex;flex-direction:column;gap:2px;min-width:0}
+.visits-label{font-size:.7rem;line-height:1.2;text-transform:uppercase;letter-spacing:.13em;color:#8bbce9;font-weight:850}
+.visits-title{font-size:.97rem;font-weight:750;color:#edf5ff;line-height:1.35}
+.visits-date{font-size:.73rem;color:#a4b9d9}
+.visits-figure{display:grid;place-items:center;flex:0 0 auto;min-width:74px;min-height:48px;margin-left:auto;padding:7px 10px;border-radius:12px;border:1px solid #75a7df43;background:#0c1c36a6}
+.visits-figure img{display:block;max-width:none;width:auto;height:34px;border-radius:4px;vertical-align:middle}
+.visits-error{font-size:.74rem;color:#d6b4c1}
+@media(max-width:420px){.visits-card{gap:10px;padding:14px 12px}.visits-symbol{flex-basis:35px;width:35px;height:35px}.visits-title{font-size:.87rem}.visits-figure{min-width:60px;padding:6px}.visits-figure img{height:29px}}
 </style>
 </head>
-<body><header><div class="wrap"><a href="#top" class="brand"><span class="mark">B/S</span><span>Berserker &amp; SiDj<small>TECHNOLOGIES</small></span></a><nav aria-label="Навигация"><a href="#about">О лаборатории</a><a href="#work">Направления</a><a href="#projects">Наши разработки</a><a href="#useful">Полезное</a><a href="#identity">Паспорт</a><a href="#contacts">Контакты</a></nav></div></header>
+<body><canvas id="matrix-bg" aria-hidden="true"></canvas><header><div class="wrap"><a href="#top" class="brand"><span class="mark">B/S</span><span>Berserker &amp; SiDj<small>TECHNOLOGIES</small></span></a><nav aria-label="Навигация"><a href="#about">О лаборатории</a><a href="#work">Направления</a><a href="#projects">Наши разработки</a><a href="#useful">Полезное</a><a href="#identity">Паспорт</a><a href="#contacts">Контакты</a></nav></div></header>
 <main class="wrap" id="top"><div class="hero"><span class="kicker">⚡ Независимая творческая IT-лаборатория</span><h1>Berserker &amp; SiDj<br>Technologies</h1><p class="intro">Превращаем сложные задачи в удобные инструменты. Экспериментируем с кодом, автоматизацией и искусственным интеллектом.</p><p class="slogan">Созидаем • Автоматизируем • Упрощаем</p><div class="actions"><a class="button" href="#identity">Паспорт бренда</a><a class="button alt" href="https://github.com/berserkerxxxl/Berserker-SiDj-Technologies">Репозиторий ↗</a></div><p class="hero-contact">✉ Контакты: <a href="mailto:berserkerxxxl@gmail.com">berserkerxxxl@gmail.com</a></p><img class="logo" src="assets/berserker-mage-official.jpg" alt="Официальный герб Berserker & SiDj Technologies: берсерк слева, маг справа, монограмма B/S, синяя и фиолетовая электроника" width="1536" height="1536" style="max-width:730px;object-fit:contain;background:white" onerror="this.onerror=null;this.src='assets/berserker-sidj-logo.svg';this.width=2040;this.height=770;this.style.maxWidth='1020px';this.style.background='none'"></div>
 <section id="about"><span class="eyebrow">О лаборатории</span><h2>Технологии с характером</h2><p class="lead">Berserker &amp; SiDj Technologies — неформальная творческая IT-лаборатория. Здесь идеи превращаются в практические инструменты: программы для локальной работы, обработка файлов, браузерные решения и автоматизация с помощью ИИ.</p></section>
 <section id="work"><span class="eyebrow">Что создаём</span><h2>Направления экспериментов</h2><div class="cards"><article class="card"><div class="emoji">⌨️</div><h3>Программы и утилиты</h3><p>Обработка данных, преобразование файлов, автоматизация регулярных операций.</p></article><article class="card"><div class="emoji">🧩</div><h3>Браузерные инструменты</h3><p>Расширения, надстройки и прототипы для комфортной цифровой среды.</p></article><article class="card"><div class="emoji">🤖</div><h3>ИИ и автоматизация</h3><p>Исследуем новые способы упрощать рутинные задачи и рабочие процессы.</p></article></div></section>
@@ -179,18 +190,103 @@ footer{margin-top:45px;border-top:1px solid #ffffff23;color:var(--muted);padding
 </a>
 <div class="footer-meta"><a class="footer-email" href="mailto:berserkerxxxl@gmail.com">✉ berserkerxxxl@gmail.com</a><a class="footer-email" href="https://t.me/berserkerxxxl" target="_blank" rel="noopener noreferrer">✈ Telegram: @berserkerxxxl</a><span class="footer-copy">© 2026 Berserker &amp; SiDj Technologies · Творческий проект</span></div>
 
-<div class="site-visits" id="site-visit-stats" aria-label="Статистика просмотров главной страницы">
-  <span class="site-visits-heading">📊 Посещения · с 23.10.2026</span>
-  <span class="site-visits-item">👁 Просмотры за сегодня / всего:
-    <img id="bs-hits-badge"
-      src="https://hits.sh/berserkerxxxl.github.io/Berserker-SiDj-Technologies.svg?view=today-total&amp;style=flat-square&amp;label=visits&amp;color=377bc8&amp;labelColor=1c3357"
-      alt="Счётчик просмотров за сегодня и за всё время" width="144" height="20"
-      decoding="async" referrerpolicy="no-referrer"
-      onerror="this.hidden=true;document.getElementById('bs-visit-error').hidden=false">
-    <span id="bs-visit-error" hidden>Сервис статистики недоступен</span>
-  </span>
-  <span class="site-visits-note">Счётчик внешнего сервиса · без скриптов</span>
+<div class="site-visits" id="site-visit-stats" aria-label="Посещаемость сайта">
+  <div class="visits-card">
+    <span class="visits-symbol" aria-hidden="true">
+      <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>
+    </span>
+    <div class="visits-body">
+      <span class="visits-label">B/S · Статистика</span>
+      <span class="visits-title">Всего просмотров</span>
+      <span class="visits-date">Считаем с 23.10.2026</span>
+    </div>
+    <span class="visits-figure" aria-label="Счётчик общих просмотров главной страницы">
+      <img src="https://hits.sh/berserkerxxxl.github.io/Berserker-SiDj-Technologies.svg?view=total&amp;style=flat-square&amp;label=%20&amp;color=254c7b&amp;labelColor=132743"
+           alt="Количество просмотров" width="58" height="20" decoding="async" referrerpolicy="no-referrer"
+           onerror="this.hidden=true;this.nextElementSibling.hidden=false">
+      <span class="visits-error" hidden>Нет данных</span>
+    </span>
+  </div>
 </div>
 </footer>
+<script>
+/* B/S ambient Matrix: sparse, slow digit streams, power-efficient and decorative. */
+(() => {
+  'use strict';
+  const canvas = document.getElementById('matrix-bg');
+  if (!canvas || !canvas.getContext || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const ctx = canvas.getContext('2d', { alpha: true });
+  if (!ctx) return;
 
+  const digits = '0123456789';
+  const fpsInterval = 1000 / 22;
+  const columnsGap = 31;
+  let width = 0, height = 0, dpr = 1, streams = [], frame = 0, lastPaint = 0, active = true;
+
+  function resize() {
+    dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+    width = window.innerWidth;
+    height = window.innerHeight;
+    canvas.width = Math.round(width * dpr);
+    canvas.height = Math.round(height * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const possible = Math.max(3, Math.floor(width / columnsGap));
+    streams = Array.from({ length: possible }, (_, i) => ({
+      x: i * columnsGap + 9,
+      y: Math.random() * (height + 400) - (height + 260),
+      speed: 9 + Math.random() * 17,
+      length: 3 + Math.floor(Math.random() * 6),
+      visible: Math.random() < .58,
+      violet: Math.random() < .24,
+      seed: Math.floor(Math.random() * digits.length)
+    }));
+    ctx.clearRect(0, 0, width, height);
+  }
+
+  function draw(time) {
+    if (!active) return;
+    frame = requestAnimationFrame(draw);
+    const deltaMs = time - lastPaint;
+    if (deltaMs < fpsInterval) return;
+    const dt = Math.min(deltaMs || fpsInterval, 150) / 1000;
+    lastPaint = time;
+    ctx.clearRect(0, 0, width, height);
+    ctx.font = '13px ui-monospace, SFMono-Regular, Consolas, monospace';
+    ctx.textAlign = 'center';
+
+    for (const stream of streams) {
+      stream.y += stream.speed * dt;
+      if (stream.y - stream.length * 23 > height) {
+        stream.y = -80 - Math.random() * height;
+        stream.visible = Math.random() < .58;
+        stream.seed = Math.floor(Math.random() * digits.length);
+      }
+      if (!stream.visible) continue;
+      for (let j = 0; j < stream.length; j++) {
+        const y = stream.y - j * 23;
+        if (y < -20 || y > height + 20) continue;
+        const opacity = (.19 - (j / stream.length) * .13).toFixed(3);
+        ctx.fillStyle = stream.violet ? 'rgba(168,135,244,' + opacity + ')' : 'rgba(111,209,201,' + opacity + ')';
+        const digit = digits[(stream.seed + j + Math.floor(time / (360 + (stream.seed % 4) * 85))) % 10];
+        ctx.fillText(digit, stream.x, y);
+      }
+    }
+  }
+
+  function visibility() {
+    active = !document.hidden;
+    if (active) {
+      lastPaint = performance.now();
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(draw);
+    } else {
+      cancelAnimationFrame(frame);
+    }
+  }
+  resize();
+  window.addEventListener('resize', resize, { passive: true });
+  document.addEventListener('visibilitychange', visibility);
+  frame = requestAnimationFrame(draw);
+})();
+</script>
 </body></html>
