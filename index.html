@@ -181,10 +181,58 @@ footer{margin-top:45px;border-top:1px solid #ffffff23;color:var(--muted);padding
 
 <div class="site-visits" id="site-visit-stats" aria-label="Статистика посещаемости главной страницы">
   <span class="site-visits-heading">📊 Посещения · с 23.10.2026</span>
-  <span class="site-visits-item">👁 Просмотров <div class="counterapi" ns="berserkerxxxl.github.io" action="view" key="Berserker-SiDj-Technologies-home" noCss="true" noIcon="true" noLink="true" noAnim="true" aria-label="Общее число просмотров">…</div></span>
-  <span class="site-visits-item">👤 Уникальных <div class="counterapi" ns="berserkerxxxl.github.io" action="view" key="Berserker-SiDj-Technologies-home" unique="true" readOnly="true" noCss="true" noIcon="true" noLink="true" noAnim="true" aria-label="Приблизительное число уникальных посетителей">…</div></span>
-  <span class="site-visits-note" title="Счётчик считает открытия главной страницы. Уникальность определяется приблизительно; прошлые посещения не восстановлены.">* приблизительно</span>
+  <span class="site-visits-item">👁 Просмотров <span class="counterapi" id="bs-page-views" aria-live="polite" aria-label="Общее число просмотров">…</span></span>
+  <span class="site-visits-item">👤 Уникальных <span class="counterapi" id="bs-unique-visitors" aria-live="polite" aria-label="Приблизительное число уникальных посетителей">…</span></span>
+  <span class="site-visits-note" id="bs-visit-note" title="Повторные открытия увеличивают просмотры, но один и тот же человек обычно считается одним уникальным посетителем. Сервис может фильтровать быстрые повторы.">* уникальные — приблизительно</span>
 </div>
 </footer>
-<script async src="https://counterapi.com/c.js?ns=berserkerxxxl.github.io" referrerpolicy="strict-origin-when-cross-origin"></script>
+<script>
+/* B/S Visitor Counter: native fetch, no jQuery or external script dependencies. */
+(() => {
+  'use strict';
+  const views = document.getElementById('bs-page-views');
+  const unique = document.getElementById('bs-unique-visitors');
+  const note = document.getElementById('bs-visit-note');
+  if (!views || !unique || !note) return;
+
+  const endpoint = 'https://counterapi.com/api/berserkerxxxl.github.io/view/Berserker-SiDj-Technologies-home';
+  const format = value => Number(value).toLocaleString('ru-RU');
+  const read = async (params = '') => {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000);
+    try {
+      const response = await fetch(endpoint + params, {
+        method: 'GET',
+        cache: 'no-store',
+        mode: 'cors',
+        signal: controller.signal
+      });
+      if (!response.ok) throw new Error('CounterAPI HTTP ' + response.status);
+      const data = await response.json();
+      if (!Number.isFinite(Number(data.value))) throw new Error('Некорректное значение счётчика');
+      return Number(data.value);
+    } finally {
+      clearTimeout(timeout);
+    }
+  };
+
+  // The first request records exactly one page view; the second only reads unique users.
+  (async () => {
+    try {
+      views.textContent = format(await read());
+    } catch (error) {
+      views.textContent = '—';
+      note.textContent = 'Статистика временно недоступна';
+      console.warn('B/S: page-view counter unavailable', error);
+    }
+    try {
+      unique.textContent = format(await read('?readOnly=true&unique=true'));
+    } catch (error) {
+      unique.textContent = '—';
+      if (views.textContent !== '—') note.textContent = 'Уникальные посетители временно недоступны';
+      console.warn('B/S: unique-visitor counter unavailable', error);
+    }
+  })();
+})();
+</script>
 </body></html>
