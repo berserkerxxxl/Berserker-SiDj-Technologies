@@ -110,7 +110,13 @@ html[data-matrix-motion="off"] .matrix-stream{animation-play-state:paused!import
 /* Dual counters: same first-party B/S cards; only the numeric badge comes from each service */
 .visits-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px;max-width:1080px}
 .visits-grid .visits-card{max-width:none;min-width:0}
-.visits-note{margin:9px 3px 0;color:#879fc3;font-size:.74rem;line-height:1.55}
+.visits-figure-unique{min-width:68px;padding:7px 12px}
+.visits-figure-unique .visits-number{display:block;color:#f5faff;font-weight:900;font-size:1.75rem;line-height:1.25;letter-spacing:-.03em;font-variant-numeric:tabular-nums;text-shadow:0 0 16px #67baff35}
+.visits-figure-unique .visits-number[hidden]{display:none}
+.visits-unique-fallback{position:relative;display:block;height:30px;max-width:130px;overflow:hidden;border-radius:6px}
+.visits-unique-fallback[hidden]{display:none!important}
+.visits-unique-fallback img{position:absolute;top:0;right:0;display:block!important;width:auto;height:30px;max-width:none;transform:none}
+.visits-unique-fallback img[hidden]{display:none!important}
 @media(max-width:750px){.visits-grid{grid-template-columns:1fr}}
 /* Visitor statistics — integrated with the B/S visual language */
 .site-visits{flex:0 0 100%;border-top:1px solid #ffffff20;margin-top:4px;padding-top:24px}
@@ -415,16 +421,18 @@ html[data-matrix-motion="off"] .matrix-stream{animation-play-state:paused!import
       </span>
       <div class="visits-body">
         <span class="visits-label">B/S · Аудитория</span>
-        <span class="visits-title">Новые посетители*</span>
+        <span class="visits-title">Новые посетители</span>
         <span class="visits-date">Учёт с 23.10.2026</span>
       </div>
-      <span class="visits-figure" aria-label="Приблизительное число уникальных посетителей главной страницы">
-        <img id="bs-uniques-badge" alt="Приблизительное количество новых посетителей в разных браузерах" width="86" height="20" decoding="async" referrerpolicy="no-referrer" hidden>
+      <span class="visits-figure visits-figure-unique" aria-label="Количество новых посетителей">
+        <span id="bs-uniques-number" class="visits-number" aria-live="polite" hidden>—</span>
+        <span id="bs-uniques-fallback" class="visits-unique-fallback" hidden>
+          <img id="bs-uniques-badge" alt="Количество новых посетителей" decoding="async" referrerpolicy="no-referrer" hidden>
+        </span>
         <span class="visits-error" id="bs-uniques-status" aria-live="polite">Загрузка…</span>
       </span>
     </div>
   </div>
-  <p class="visits-note">* Считаем впервые открывшие сайт браузеры. Повторные заходы из того же браузера не увеличивают показатель. Другие устройства, приватный режим или очистка данных сайта могут учесть того же человека ещё раз.</p>
 </div>
 </footer>
 <script>
@@ -450,16 +458,18 @@ html[data-matrix-motion="off"] .matrix-stream{animation-play-state:paused!import
 })();
 </script>
 <script>
-/* B/S first-time visitors: one increment per browser, without IP-based deduplication.
-   Public CountAPI stores only an aggregate; first-party localStorage stores the "seen" flag. */
+/* B/S first-time visitors: preserve live SVG hit/get and deduplication key.
+   Display a native number when CORS JSON works; otherwise crop the SVG to its number. */
 (() => {
   'use strict';
   const img = document.getElementById('bs-uniques-badge');
+  const numberEl = document.getElementById('bs-uniques-number');
+  const fallback = document.getElementById('bs-uniques-fallback');
   const status = document.getElementById('bs-uniques-status');
-  if (!img || !status) return;
+  if (!img || !numberEl || !fallback || !status) return;
 
   const storageKey = 'bs_home_seen_unique_20261023_v2';
-  const counterKey = 'berserker_s idj_technologies_unique_home_v2_20261023'.replaceAll(' ', '');
+  const counterKey = 'berserker_sidj_technologies_unique_home_v2_20261023';
   const api = 'https://countapi.mileshilliard.com/api/v1/';
   let storage = null;
   try {
@@ -473,10 +483,8 @@ html[data-matrix-motion="off"] .matrix-stream{animation-play-state:paused!import
       storage = sessionStorage;
     } catch (_) {}
   }
-
-  // Without storage, do not increment at all: repeated refreshes would inflate visitors.
   if (!storage) {
-    status.textContent = 'Учёт недоступен';
+    status.textContent = 'Недоступно';
     return;
   }
   let counted = false;
@@ -485,16 +493,47 @@ html[data-matrix-motion="off"] .matrix-stream{animation-play-state:paused!import
   const url = api + action + '/' + counterKey +
     '/shield?text=%20&bgcolor=254c7b&textcolor=ffffff&style=flat&v=' + Date.now();
 
-  img.addEventListener('load', () => {
+  img.addEventListener('load', async () => {
     if (!counted) {
       try { storage.setItem(storageKey, 'counted'); } catch (_) {}
     }
+
+    // Immediate visual fallback. Use the right half of the shield only.
+    const ratio = img.naturalWidth > 0 && img.naturalHeight > 0
+      ? img.naturalWidth / img.naturalHeight : 2.8;
+    fallback.style.width = Math.max(24, Math.ceil((ratio * 30) / 2)) + 'px';
     img.hidden = false;
+    fallback.hidden = false;
     status.hidden = true;
+
+    // Reading the JSON is non-mutating. It must never make an extra "hit".
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+    try {
+      const response = await fetch(api + 'get/' + counterKey, {
+        method: 'GET',
+        mode: 'cors',
+        cache: 'no-store',
+        signal: controller.signal
+      });
+      if (!response.ok) throw new Error('Count API read failed');
+      const data = await response.json();
+      const value = Number(data.value);
+      if (!Number.isSafeInteger(value) || value < 0) throw new Error('Invalid count');
+      numberEl.textContent = value.toLocaleString('ru-RU');
+      numberEl.hidden = false;
+      fallback.hidden = true;
+    } catch (_) {
+      // Brave may block CORS; the already-working SVG count remains visible.
+    } finally {
+      clearTimeout(timeoutId);
+    }
   }, { once: true });
+
   img.addEventListener('error', () => {
     img.hidden = true;
-    status.textContent = 'Статистика недоступна';
+    fallback.hidden = true;
+    status.textContent = 'Недоступно';
     status.hidden = false;
   }, { once: true });
   img.src = url;
