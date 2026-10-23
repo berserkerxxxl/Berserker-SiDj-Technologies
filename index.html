@@ -110,6 +110,12 @@ html[data-matrix-motion="off"] .matrix-stream{animation-play-state:paused!import
 /* Dual counters: same first-party B/S cards; only the numeric badge comes from each service */
 .visits-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px;max-width:1080px}
 .visits-grid .visits-card{max-width:none;min-width:0}
+/* Views: fully transparent source badge; clip away the empty label area.
+   Keep one original hits.sh request, preserving the ongoing total. */
+.visits-figure-views{min-width:46px;padding:0;justify-content:flex-end}
+.visits-views-crop{position:relative;display:block;width:49px;height:32px;overflow:hidden;border:0;background:none;isolation:auto}
+.visits-views-crop img{position:absolute;right:0;top:0;width:auto!important;height:32px!important;max-width:none!important;border:0!important;border-radius:0!important;background:transparent!important;mix-blend-mode:normal!important;filter:none}
+.visits-views-crop[hidden]{display:none!important}
 .visits-figure-unique{min-width:46px;padding:0}
 .visits-figure-unique .visits-number{display:block;color:#f5faff;font:750 1.2rem/1.25 system-ui,-apple-system,"Segoe UI",Arial,sans-serif;letter-spacing:0;font-variant-numeric:tabular-nums}
 .visits-figure-unique .visits-number[hidden]{display:none}
@@ -408,10 +414,14 @@ html[data-matrix-motion="off"] .matrix-stream{animation-play-state:paused!import
         <span class="visits-title">Всего просмотров</span>
         <span class="visits-date">Считаем с 23.10.2026</span>
       </div>
-      <span class="visits-figure" aria-label="Счётчик просмотров главной страницы">
-        <img src="https://hits.sh/berserkerxxxl.github.io/Berserker-SiDj-Technologies.svg?view=total&amp;style=flat-square&amp;label=%20&amp;color=000000&amp;labelColor=000000"
-             alt="Количество просмотров" width="58" height="20" decoding="async" referrerpolicy="no-referrer"
-             onerror="this.hidden=true;this.nextElementSibling.hidden=false">
+      <span class="visits-figure visits-figure-views" aria-label="Счётчик просмотров главной страницы">
+        <span class="visits-views-crop">
+          <img id="bs-views-badge"
+               src="https://hits.sh/berserkerxxxl.github.io/Berserker-SiDj-Technologies.svg?view=total&amp;style=flat-square&amp;label=%20&amp;color=transparent&amp;labelColor=transparent"
+               alt="Количество просмотров" decoding="async" referrerpolicy="no-referrer"
+               onload="this.parentElement.style.width=Math.max(22,Math.ceil(this.naturalWidth/this.naturalHeight*32*.57))+'px'"
+               onerror="this.parentElement.hidden=true;this.parentElement.nextElementSibling.hidden=false">
+        </span>
         <span class="visits-error" hidden>Нет данных</span>
       </span>
     </div>
