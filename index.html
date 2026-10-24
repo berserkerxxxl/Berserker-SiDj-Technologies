@@ -110,12 +110,10 @@ html[data-matrix-motion="off"] .matrix-stream{animation-play-state:paused!import
 /* Dual counters: same first-party B/S cards; only the numeric badge comes from each service */
 .visits-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px;max-width:1080px}
 .visits-grid .visits-card{max-width:none;min-width:0}
-/* Views: fully transparent source badge; clip away the empty label area.
-   Keep one original hits.sh request, preserving the ongoing total. */
+/* Views: show the complete transparent SVG, never crop digits when counts grow. */
 .visits-figure-views{min-width:46px;padding:0;justify-content:flex-end}
-.visits-views-crop{position:relative;display:block;width:49px;height:32px;overflow:hidden;border:0;background:none;isolation:auto}
-.visits-views-crop img{position:absolute;right:0;top:0;width:auto!important;height:32px!important;max-width:none!important;border:0!important;border-radius:0!important;background:transparent!important;mix-blend-mode:normal!important;filter:none}
-.visits-views-crop[hidden]{display:none!important}
+.visits-figure-views img{display:block!important;height:30px!important;width:auto!important;max-width:none!important;border:0!important;border-radius:0!important;background:transparent!important;mix-blend-mode:screen!important}
+.visits-figure-views img[hidden]{display:none!important}
 .visits-figure-unique{min-width:46px;padding:0}
 .visits-figure-unique .visits-number{display:block;color:#f5faff;font:750 1.2rem/1.25 system-ui,-apple-system,"Segoe UI",Arial,sans-serif;letter-spacing:0;font-variant-numeric:tabular-nums}
 .visits-figure-unique .visits-number[hidden]{display:none}
@@ -415,14 +413,9 @@ html[data-matrix-motion="off"] .matrix-stream{animation-play-state:paused!import
         <span class="visits-date">Считаем с 23.10.2026</span>
       </div>
       <span class="visits-figure visits-figure-views" aria-label="Счётчик просмотров главной страницы">
-        <span class="visits-views-crop">
-          <img id="bs-views-badge"
-               src="https://hits.sh/berserkerxxxl.github.io/Berserker-SiDj-Technologies.svg?view=total&amp;style=flat-square&amp;label=%20&amp;color=transparent&amp;labelColor=transparent"
-               alt="Количество просмотров" decoding="async" referrerpolicy="no-referrer"
-               onload="this.parentElement.style.width=Math.max(22,Math.ceil(this.naturalWidth/this.naturalHeight*32*.57))+'px'"
-               onerror="this.parentElement.hidden=true;this.parentElement.nextElementSibling.hidden=false">
-        </span>
-        <span class="visits-error" hidden>Нет данных</span>
+        <img id="bs-views-badge" alt="Общее число просмотров" decoding="async" referrerpolicy="no-referrer" hidden>
+        <img id="bs-views-backup" alt="Резервный счётчик просмотров с 24 октября 2026 года" decoding="async" referrerpolicy="no-referrer" hidden>
+        <span class="visits-error" id="bs-views-status" aria-live="polite">Загрузка…</span>
       </span>
     </div>
     <div class="visits-card">
@@ -468,8 +461,75 @@ html[data-matrix-motion="off"] .matrix-stream{animation-play-state:paused!import
 })();
 </script>
 <script>
-/* B/S first-time visitors: preserve live SVG hit/get and deduplication key.
-   Display a native number when CORS JSON works; otherwise crop the SVG to its number. */
+/* B/S page views: preserve the original hits.sh URL identifier and count each page load once.
+   Keep a second independent count from 24.10.2026 only for transparent outage fallback. */
+(() => {
+  'use strict';
+  const primary = document.getElementById('bs-views-badge');
+  const backup = document.getElementById('bs-views-backup');
+  const status = document.getElementById('bs-views-status');
+  const date = document.querySelector('.visits-card .visits-date');
+  if (!primary || !backup || !status || !date) return;
+  const originalDate = date.textContent;
+  const stamp = Date.now();
+  let primaryLoaded = false;
+  let primaryFailed = false;
+  let backupLoaded = false;
+
+  function showBackupIfNeeded() {
+    if (!primaryFailed || primaryLoaded) return;
+    primary.hidden = true;
+    if (backupLoaded) {
+      backup.hidden = false;
+      date.textContent = 'Резервный учёт с 24.10.2026';
+      status.hidden = true;
+    } else {
+      backup.hidden = true;
+      status.textContent = 'Нет данных';
+      status.hidden = false;
+    }
+  }
+
+  primary.addEventListener('load', () => {
+    primaryLoaded = true;
+    primaryFailed = false;
+    primary.hidden = false;
+    backup.hidden = true;
+    date.textContent = originalDate;
+    status.hidden = true;
+  }, { once: true });
+  primary.addEventListener('error', () => {
+    primaryFailed = true;
+    showBackupIfNeeded();
+  }, { once: true });
+  backup.addEventListener('load', () => {
+    backupLoaded = true;
+    showBackupIfNeeded();
+  }, { once: true });
+  backup.addEventListener('error', () => {
+    backupLoaded = false;
+    showBackupIfNeeded();
+  }, { once: true });
+
+  // Cache-busting requests keep both counters live; do not duplicate either hit.
+  primary.src = 'https://hits.sh/berserkerxxxl.github.io/Berserker-SiDj-Technologies.svg'
+    + '?view=total&style=flat-square&label=%20&color=transparent&labelColor=transparent&v=' + stamp;
+  backup.src = 'https://countapi.mileshilliard.com/api/v1/hit/'
+    + 'berserker_sidj_technologies_views_backup_20261024_v1'
+    + '/shield?text=%20&bgcolor=000000&textcolor=ffffff&style=flat&v=' + stamp;
+
+  // Some mobile browsers stall blocked third-party images without firing "error".
+  setTimeout(() => {
+    if (!primaryLoaded) {
+      primaryFailed = true;
+      showBackupIfNeeded();
+    }
+  }, 10000);
+})();
+</script>
+<script>
+/* B/S new visitors: keep the original remote key and the existing browser deduplication key.
+   One and only one SVG request performs a "hit"; JSON calls below are read-only. */
 (() => {
   'use strict';
   const img = document.getElementById('bs-uniques-badge');
@@ -480,6 +540,7 @@ html[data-matrix-motion="off"] .matrix-stream{animation-play-state:paused!import
 
   const storageKey = 'bs_home_seen_unique_20261023_v2';
   const counterKey = 'berserker_sidj_technologies_unique_home_v2_20261023';
+  const lastKnownKey = 'bs_uniques_last_confirmed_20261024';
   const api = 'https://countapi.mileshilliard.com/api/v1/';
   let storage = null;
   try {
@@ -497,18 +558,35 @@ html[data-matrix-motion="off"] .matrix-stream{animation-play-state:paused!import
     status.textContent = 'Недоступно';
     return;
   }
+
   let counted = false;
   try { counted = storage.getItem(storageKey) === 'counted'; } catch (_) {}
+  let lastKnown = null;
+  try {
+    const saved = Number(storage.getItem(lastKnownKey));
+    if (Number.isSafeInteger(saved) && saved > 0) lastKnown = saved;
+  } catch (_) {}
+
+  function showLastKnown() {
+    if (lastKnown === null) return false;
+    numberEl.textContent = '≥' + lastKnown.toLocaleString('ru-RU');
+    numberEl.title = 'Не менее: последнее подтверждённое значение этого браузера';
+    numberEl.hidden = false;
+    fallback.hidden = true;
+    status.hidden = true;
+    return true;
+  }
+
   const action = counted ? 'get' : 'hit';
-  const url = api + action + '/' + counterKey +
-    '/shield?text=%20&bgcolor=000000&textcolor=ffffff&style=flat&v=' + Date.now();
+  const url = api + action + '/' + counterKey
+    + '/shield?text=%20&bgcolor=000000&textcolor=ffffff&style=flat&v=' + Date.now();
 
   img.addEventListener('load', async () => {
     if (!counted) {
       try { storage.setItem(storageKey, 'counted'); } catch (_) {}
     }
 
-    // Immediate visual fallback. Use the right half of the shield only.
+    // Display the service's live SVG first; if JSON is available, use our native font.
     const ratio = img.naturalWidth > 0 && img.naturalHeight > 0
       ? img.naturalWidth / img.naturalHeight : 2.8;
     fallback.style.width = Math.max(24, Math.ceil((ratio * 30) / 2)) + 'px';
@@ -516,25 +594,31 @@ html[data-matrix-motion="off"] .matrix-stream{animation-play-state:paused!import
     fallback.hidden = false;
     status.hidden = true;
 
-    // Reading the JSON is non-mutating. It must never make an extra "hit".
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 5000);
     try {
       const response = await fetch(api + 'get/' + counterKey, {
-        method: 'GET',
-        mode: 'cors',
-        cache: 'no-store',
-        signal: controller.signal
+        method: 'GET', mode: 'cors', cache: 'no-store', signal: controller.signal
       });
-      if (!response.ok) throw new Error('Count API read failed');
+      if (!response.ok) throw new Error('Count read failed');
       const data = await response.json();
       const value = Number(data.value);
       if (!Number.isSafeInteger(value) || value < 0) throw new Error('Invalid count');
-      numberEl.textContent = value.toLocaleString('ru-RU');
-      numberEl.hidden = false;
-      fallback.hidden = true;
+      if (lastKnown !== null && value < lastKnown) {
+        // Do not silently replace a previously verified value with a reset zero.
+        showLastKnown();
+      } else {
+        numberEl.textContent = value.toLocaleString('ru-RU');
+        numberEl.title = '';
+        numberEl.hidden = false;
+        fallback.hidden = true;
+        if (lastKnown === null || value > lastKnown) {
+          try { storage.setItem(lastKnownKey, String(value)); } catch (_) {}
+          lastKnown = value;
+        }
+      }
     } catch (_) {
-      // Brave may block CORS; the already-working SVG count remains visible.
+      // Brave may block cross-origin JSON; the already loaded SVG remains useful.
     } finally {
       clearTimeout(timeoutId);
     }
@@ -543,9 +627,12 @@ html[data-matrix-motion="off"] .matrix-stream{animation-play-state:paused!import
   img.addEventListener('error', () => {
     img.hidden = true;
     fallback.hidden = true;
-    status.textContent = 'Недоступно';
-    status.hidden = false;
+    if (!showLastKnown()) {
+      status.textContent = 'Нет данных';
+      status.hidden = false;
+    }
   }, { once: true });
+
   img.src = url;
 })();
 </script>
