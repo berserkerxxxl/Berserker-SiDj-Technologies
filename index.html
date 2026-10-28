@@ -135,6 +135,11 @@ html[data-matrix-motion="off"] .matrix-stream{animation-play-state:paused!import
 .visits-figure img{display:block;max-width:none;width:auto;height:30px;border-radius:0;vertical-align:middle;mix-blend-mode:screen}
 .visits-error{font-size:.74rem;color:#d6b4c1}
 @media(max-width:420px){.visits-card{gap:10px;padding:14px 12px}.visits-symbol{flex-basis:35px;width:35px;height:35px}.visits-title{font-size:.87rem}.visits-figure{min-width:40px;padding:0}.visits-figure img{height:29px}.visits-figure-unique .visits-number{font-size:1.15rem}}
+
+/* B/S Reserve alpha release */
+.reserve-alpha{border-color:#b18a4d88;background:linear-gradient(130deg,#1c2c48,#30253f)}
+.reserve-alpha .mini-tag{color:#f0ca82}.reserve-alpha .mini-icon{background:linear-gradient(135deg,#246877,#6a4b88)}
+.reserve-alpha .alpha-label{display:inline-block;margin-left:8px;border:1px solid #a1814b88;border-radius:999px;padding:4px 9px;color:#f3d59c;background:#634b252e;font-size:.68rem;vertical-align:middle;letter-spacing:.04em}
 </style>
 </head>
 <body><div id="matrix-bg" aria-hidden="true">
@@ -390,6 +395,22 @@ html[data-matrix-motion="off"] .matrix-stream{animation-play-state:paused!import
       <a href="https://github.com/berserkerxxxl/Berserker-SiDj-Technologies/blob/main/downloads/README.md" target="_blank" rel="noopener noreferrer">Описание и контрольная сумма ↗</a>
     </div>
     <p class="release-note">Важно: утилита изменяет системный файл hosts (предварительно создаёт резервную копию), очищает DNS-кэш и может настраивать сетевой доступ приложений. Требуются права администратора. Не используйте на служебных ПК без разрешения. Это независимая разработка B/S, а не официальный установщик OpenAI или Microsoft. Не отключайте защиту Windows ради запуска.</p>
+  </div>
+</article>
+
+<article class="mini-product reserve-alpha" id="bs-reserve" aria-labelledby="reserve-title">
+  <div class="mini-icon" aria-hidden="true"><svg width="44" height="44" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="15" width="34" height="27" rx="4"/><rect x="4" y="6" width="40" height="10" rx="3"/><path d="M18 24h12m-12 9 4 4 8-9"/></svg></div>
+  <div class="mini-product-body">
+    <div class="mini-tag">Windows 11 x64 · Открытое тестирование · 0.1.0-alpha.1</div>
+    <h3 id="reserve-title">B/S Reserve — Резервирование <span class="alpha-label">АЛЬФА</span></h3>
+    <p>Локальный архив данных ChatGPT: переписки, файлы, отдельные снимки памяти и инструкций, папки разработок. Версии, поиск, шифрование через restic и проверка восстановления.</p>
+    <div class="mini-links">
+      <a class="mini-download" href="downloads/BS_Reserve_0.1.0-alpha.1_build20261028.2_win64.zip" download="BS_Reserve_0.1.0-alpha.1_build20261028.2_win64.zip">↓ Скачать альфа-версию (.zip)</a>
+      <a href="apps/bs-reserve/">Описание и тестирование ↗</a>
+      <a href="apps/bs-reserve/#feedback">Сообщить об ошибке ↗</a>
+    </div>
+    <p class="release-note"><strong>Экспериментальная альфа-версия.</strong> Начните с вымышленных примеров и копий файлов. Не используйте как единственную резервную копию. Работа на пользовательских ПК Windows 11 и с реальными выгрузками ещё требует проверки. Официальный экспорт ChatGPT получается отдельно.</p>
+    <p class="mini-disclaimer">Билд 20261028.2 · 17,1 МиБ · EXE, исходники, коллекторы и инструкция внутри ZIP. Рабочая папка Data открытая; шифруются резервные репозитории.</p>
   </div>
 </article>
 </section>

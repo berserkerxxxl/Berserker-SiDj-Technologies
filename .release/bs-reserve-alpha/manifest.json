@@ -1,0 +1,284 @@
+{
+  "name": "BS_Reserve_0.1.0-alpha.1_build20261028.2_win64.zip",
+  "path": "downloads/BS_Reserve_0.1.0-alpha.1_build20261028.2_win64.zip",
+  "bytes": 17898664,
+  "sha256": "c9d057af6bd713ba847e7e7c85862a856c3f12dd89be75814563ff597c8683af",
+  "parts": [
+    {
+      "path": ".release/bs-reserve-alpha/part-001.bin",
+      "size": 393216,
+      "sha256": "d9fbea9d59c570d58a8729327fca888b0a1b45c7ef34fd874c3d4ad0b9bfd2f1",
+      "git_blob_sha": "6c87e03c0c75e70f69ccf165cbb55924eb383e7e"
+    },
+    {
+      "path": ".release/bs-reserve-alpha/part-002.bin",
+      "size": 393216,
+      "sha256": "2d6d23328bd2300930d2fcf683d913847c67e10e66af1cda457112791a80ef12",
+      "git_blob_sha": "c362d9ad438445e572e11cad5d9d4831bc84189a"
+    },
+    {
+      "path": ".release/bs-reserve-alpha/part-003.bin",
+      "size": 393216,
+      "sha256": "87dca0bc5821ea1f5ad5ff6bf5b1c605cffdd941af4d9d4429aab29883abfec0",
+      "git_blob_sha": "8cb2be508984dcab72850855e07a502ceb2b960a"
+    },
+    {
+      "path": ".release/bs-reserve-alpha/part-004.bin",
+      "size": 393216,
+      "sha256": "ae4acf2808f87c88f6fc1e15ce180c35d4e3e3c89373d1c9d632fad5f6cc7dd4",
+      "git_blob_sha": "96102f1df65e46ee9192e16e6f4931121704fd58"
+    },
+    {
+      "path": ".release/bs-reserve-alpha/part-005.bin",
+      "size": 393216,
+      "sha256": "dcc4ae41e21551232f2bde6f22c9ea8c05bb594e385d31c0c7fd902b22b100ba",
+      "git_blob_sha": "552aca1f0f61f0fa23725188aafdf838a52022f6"
+    },
+    {
+      "path": ".release/bs-reserve-alpha/part-006.bin",
+      "size": 393216,
+      "sha256": "7675787fa2ffcaf04918ca1949dfbffde36404bd48e9edd161790750eb621843",
+      "git_blob_sha": "f08aea5fececeb70be920b417971ea168db53287"
+    },
+    {
+      "path": ".release/bs-reserve-alpha/part-007.bin",
+      "size": 393216,
+      "sha256": "fdb42119508e62ce13d31a91986e0df644fcf777e1d2edd883dd02dedb9e477a",
+      "git_blob_sha": "281fcf543d601022cfec69b79cccf6623b4bab91"
+    },
+    {
+      "path": ".release/bs-reserve-alpha/part-008.bin",
+      "size": 393216,
+      "sha256": "52a84c5db995f6c38b184c44f3d3752c18dbe5b0d20e235e0908f96b38ccc6f4",
+      "git_blob_sha": "231b823f8275f7f06ee65c61f741199985887197"
+    },
+    {
+      "path": ".release/bs-reserve-alpha/part-009.bin",
+      "size": 393216,
+      "sha256": "8944be440b48c9365de2782a481ebf544c0d3a3ff67209c45f50ef33082ca9a8",
+      "git_blob_sha": "1375da6e985f3fe1011ce1c192e60a4fd92c245d"
+    },
+    {
+      "path": ".release/bs-reserve-alpha/part-010.bin",
+      "size": 393216,
+      "sha256": "c02462099f6f34e6d328584e775c726064454f0ca4064f919a71fad42848ba4d",
+      "git_blob_sha": "c9b8af5d5133eee19dd303730a51bbb0c3ecbe09"
+    },
+    {
+      "path": ".release/bs-reserve-alpha/part-011.bin",
+      "size": 393216,
+      "sha256": "222bbcae93e91a6de5069ab89715dff5e5a1197727e0a14fc66f41eda7af8c42",
+      "git_blob_sha": "fb0521da12eab941268fa596b1086e24647f57e4"
+    },
+    {
+      "path": ".release/bs-reserve-alpha/part-012.bin",
+      "size": 393216,
+      "sha256": "45f845f89c2bd62cc9bc4dbcec5fcb76ff3cfa632c2f186c72b45ca9259407c1",
+      "git_blob_sha": "0e9f4eb2cc16e46f492029786fd478337f3baa6c"
+    },
+    {
+      "path": ".release/bs-reserve-alpha/part-013.bin",
+      "size": 393216,
+      "sha256": "780f2162faf43a84feb7f9cc22cbe72cf1ac33bb1787db071ef2122346596a58",
+      "git_blob_sha": "71abe87fc13e48df2395d0fb7123cb1b7fb66884"
+    },
+    {
+      "path": ".release/bs-reserve-alpha/part-014.bin",
+      "size": 393216,
+      "sha256": "1b75a26827bc281d56ebe5733addd45b0b8a0e3f35bead6d959a5b5bc36fe47f",
+      "git_blob_sha": "b89168f73015e3577a07cd4cfacc2f251e86c897"
+    },
+    {
+      "path": ".release/bs-reserve-alpha/part-015.bin",
+      "size": 393216,
+      "sha256": "69f3a64e1228c2b5af452b5be4349a75021633f6b70f6770951c0396bf2704f4",
+      "git_blob_sha": "76e36db9589e0f3e7dd59c4cb0f8dab2c323fdda"
+    },
+    {
+      "path": ".release/bs-reserve-alpha/part-016.bin",
+      "size": 393216,
+      "sha256": "4dc5f90a230649519b886afd85b731b68a4f3681cf311cf69424805e85f6350c",
+      "git_blob_sha": "664d452a66e5881ab56af736c997c6e3e4baacc0"
+    },
+    {
+      "path": ".release/bs-reserve-alpha/part-017.bin",
+      "size": 393216,
+      "sha256": "747a94d9f64a5cf4f113653519a95947728154a9182976eb2ced9589f8a35aed",
+      "git_blob_sha": "5a3db099c0ea1b832c354ef5eb9f02805a89bdfa"
+    },
+    {
+      "path": ".release/bs-reserve-alpha/part-018.bin",
+      "size": 393216,
+      "sha256": "cc6001a2fa1dc3707d800fd7bcefc50ebdcbc9de412606061fd478712386253d",
+      "git_blob_sha": "b0a22e0ea09107ff9597d1c76e390059dc2a32e5"
+    },
+    {
+      "path": ".release/bs-reserve-alpha/part-019.bin",
+      "size": 393216,
+      "sha256": "063a0be0525a9a3f090eef69b019ea8e388988ca4d65085cc713a55c02d67883",
+      "git_blob_sha": "e121a5f1b8be18a5689c55bfe30b8314041689f9"
+    },
+    {
+      "path": ".release/bs-reserve-alpha/part-020.bin",
+      "size": 393216,
+      "sha256": "2b6e6cd8117a5cf6dea303a340e27794ad11d312ad559112f9331349f5feb1f6",
+      "git_blob_sha": "da78e09913990c13f9f0e43893e536c7f2c013de"
+    },
+    {
+      "path": ".release/bs-reserve-alpha/part-021.bin",
+      "size": 393216,
+      "sha256": "ea353cd4f2bdeb2169a3d108912d5d22ff46e600aa73d47fb8773c341aefac5c",
+      "git_blob_sha": "3615b6f1a685aa9cb2b3670ceb1fbe784c3f8e99"
+    },
+    {
+      "path": ".release/bs-reserve-alpha/part-022.bin",
+      "size": 393216,
+      "sha256": "f7b7a8341f56fce481c85b8abaee00d55ca046bd6941caaa1cbcffc969f45c11",
+      "git_blob_sha": "0b3109d5f83e39cded45fbb1b6196b521aa0b098"
+    },
+    {
+      "path": ".release/bs-reserve-alpha/part-023.bin",
+      "size": 393216,
+      "sha256": "7f1f616d051f5453d2bdc9fd9e65e2ebd5b9ce912fb0fe2890fdef888878e870",
+      "git_blob_sha": "bad0365520b150c28f89e40b40127137a752f7b2"
+    },
+    {
+      "path": ".release/bs-reserve-alpha/part-024.bin",
+      "size": 393216,
+      "sha256": "fdfb27e79810ff067db76a6b32a12718b92d3b85ab506991e33a002422c27693",
+      "git_blob_sha": "299414d1a2be5ded9a01f139ecd84728b0cd151e"
+    },
+    {
+      "path": ".release/bs-reserve-alpha/part-025.bin",
+      "size": 393216,
+      "sha256": "b385eba0ea3dbfca755e779035a8cab929b52ed146b02a9441751690fc7eb31e",
+      "git_blob_sha": "35f80b3a08496998b8e25d58b357b813e2235263"
+    },
+    {
+      "path": ".release/bs-reserve-alpha/part-026.bin",
+      "size": 393216,
+      "sha256": "058690547a550515e34d7c03341893529ea012c86505d71f3b1868024eb50178",
+      "git_blob_sha": "0e46d5f22a1ce8c9a2ff0a0e62a167ee7c133b4d"
+    },
+    {
+      "path": ".release/bs-reserve-alpha/part-027.bin",
+      "size": 393216,
+      "sha256": "8dcb71857cdaa82e9ae2b7bdca7eb2c6a1a94be53daf56fb9a0ee95792db193e",
+      "git_blob_sha": "1815d62cf0f2e22c8e39cba351fc787c0dd51377"
+    },
+    {
+      "path": ".release/bs-reserve-alpha/part-028.bin",
+      "size": 393216,
+      "sha256": "99ea7b5aa30c2d8d2ddb3ecafc9b37d3151566020ea23d6238c20fd5045a4318",
+      "git_blob_sha": "45bd8de738f924cabbcb09af81109b631b32f1ac"
+    },
+    {
+      "path": ".release/bs-reserve-alpha/part-029.bin",
+      "size": 393216,
+      "sha256": "f45bfa2c2ffee50d9c7ecaca2072df49dcb4d8ffb8f638c68875257ef0dc3b42",
+      "git_blob_sha": "cda8d9e0d0d351657ed374fa9729ca939566fbe7"
+    },
+    {
+      "path": ".release/bs-reserve-alpha/part-030.bin",
+      "size": 393216,
+      "sha256": "824fc263078ce1e206d4b7a37d73d55170d1f1b3c7997a910a8de28e7c9cdb17",
+      "git_blob_sha": "ff0e43e3274cebc892cec8a561ff2c644182a8e4"
+    },
+    {
+      "path": ".release/bs-reserve-alpha/part-031.bin",
+      "size": 393216,
+      "sha256": "2ae77bebfae866e6144869b63aea17a6a28e93ddbc9cee13bf990bc2759712b7",
+      "git_blob_sha": "2bd7ed0bf0c6dba3d33aa10560c89d31863bde65"
+    },
+    {
+      "path": ".release/bs-reserve-alpha/part-032.bin",
+      "size": 393216,
+      "sha256": "583a1d0c5b31ea52eba28abf214816220ced9e5029e473d1902b976425695003",
+      "git_blob_sha": "b5215cb66c8c9ae5cb658efbabda2094fe5482ba"
+    },
+    {
+      "path": ".release/bs-reserve-alpha/part-033.bin",
+      "size": 393216,
+      "sha256": "cf58dc837c7c4931696d88716d31ac43fc20804d9d1da0b38163cdc688287d43",
+      "git_blob_sha": "1202413bcb619c148e2ffe9712c112a5cdc04e76"
+    },
+    {
+      "path": ".release/bs-reserve-alpha/part-034.bin",
+      "size": 393216,
+      "sha256": "7b7b62dbb2cb49cb63e317b7455398bcb56e398e189338f12973203962d67de5",
+      "git_blob_sha": "63e13141984074379b570f16f582fd53890167f6"
+    },
+    {
+      "path": ".release/bs-reserve-alpha/part-035.bin",
+      "size": 393216,
+      "sha256": "15920f5c9858ec301b78c0a440654a411211193e462a77ed9b6957a258dd1721",
+      "git_blob_sha": "3ae3ecbfad707f69a53e42209e634a42991afe58"
+    },
+    {
+      "path": ".release/bs-reserve-alpha/part-036.bin",
+      "size": 393216,
+      "sha256": "f77eec628b97c195fd3476bc33b60c9a2d9070110c02e0bb952123d00c3698c4",
+      "git_blob_sha": "402b541a846ca452782d1081b06f233efd7b94ef"
+    },
+    {
+      "path": ".release/bs-reserve-alpha/part-037.bin",
+      "size": 393216,
+      "sha256": "c1717c5664478ed32cacb8ee150cde46a3da2e2929034f853b3fe88dae2376fd",
+      "git_blob_sha": "7b8a4bd93f2526216a400f32c37faaba7a8170cb"
+    },
+    {
+      "path": ".release/bs-reserve-alpha/part-038.bin",
+      "size": 393216,
+      "sha256": "8f148a5c309b8267a2f74856898fe4ce2fd0e29044a9ff493660483260d86190",
+      "git_blob_sha": "a608af020e1394a69fa69b426b4e4b54330aba50"
+    },
+    {
+      "path": ".release/bs-reserve-alpha/part-039.bin",
+      "size": 393216,
+      "sha256": "bf745c94e63caec98c0ae8a159752ba736dba65e132c87e649af3dbbb4ec15a0",
+      "git_blob_sha": "cfd57f71fc414c36a80ccbf6880b78cdecdc24e5"
+    },
+    {
+      "path": ".release/bs-reserve-alpha/part-040.bin",
+      "size": 393216,
+      "sha256": "ad3b44787a18f6d6979894f6abdc5395d39b060186ba9f0cfe49bf93f23f9dde",
+      "git_blob_sha": "58f1b02ced96e5ab9f3e6168bb2ebb356597a7e8"
+    },
+    {
+      "path": ".release/bs-reserve-alpha/part-041.bin",
+      "size": 393216,
+      "sha256": "972b48136268ec973e11a85853a9c3bedaf0ffa472db1643f40d6ff2160754e4",
+      "git_blob_sha": "128bff641a305aa5e76f5cbddfb011603887a85e"
+    },
+    {
+      "path": ".release/bs-reserve-alpha/part-042.bin",
+      "size": 393216,
+      "sha256": "ac1086c9a9d7ed645dd15c7bcc9a88f5e31940166924ef6e25d0198f2aa36f94",
+      "git_blob_sha": "644747f142d11fb32180dffa2da5f3e6f583b4e6"
+    },
+    {
+      "path": ".release/bs-reserve-alpha/part-043.bin",
+      "size": 393216,
+      "sha256": "3f4371729cfb4e948b2a037cc11713dcf9de40f6a043f8d8c0a46c8acece5f5a",
+      "git_blob_sha": "90577d33bae09dbec9b6733fd1324ed6d7d5d066"
+    },
+    {
+      "path": ".release/bs-reserve-alpha/part-044.bin",
+      "size": 393216,
+      "sha256": "968d4bac0fa7bfbd5a6f7028e531268f4227daf0b633ce7acdfde6ab53bd5fa3",
+      "git_blob_sha": "05f19f52cd413d56c6c151d7a7098cb0c49acd5d"
+    },
+    {
+      "path": ".release/bs-reserve-alpha/part-045.bin",
+      "size": 393216,
+      "sha256": "def92d800360a841d392adf1e632e06cab7fe01ec7f841e2c77121444813e367",
+      "git_blob_sha": "cecd2202f5bb91f8688b81f4768f80e61f93ccc8"
+    },
+    {
+      "path": ".release/bs-reserve-alpha/part-046.bin",
+      "size": 203944,
+      "sha256": "0c7bff15b649799b01e6505e76c82efd98f92010b1736bbfad66b93f9324076d",
+      "git_blob_sha": "d024098ed2d62815acc3b0c60105788de6e3a817"
+    }
+  ]
+}
