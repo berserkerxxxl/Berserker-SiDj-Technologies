@@ -1,0 +1,67 @@
+{
+  "date": "2026-10-28",
+  "go": {
+    "version": "go1.27.3",
+    "sha256": "65efbc80fdc1fa2cd2631cad5b481777a68e8725f34e89f50fc6ac714e379b40"
+  },
+  "components": [
+    {
+      "name": "thekester/chatgpt-export",
+      "commit": "13568bf75688de74a5af563b20d5ccd28f4ad532",
+      "archive_sha256": "9142606428314b369ab1179b59e491af5ede180a47ead5a5ac5156c8ad76efdf",
+      "source": "https://github.com/thekester/chatgpt-export",
+      "folder": "third-party/chatgpt-export-upstream",
+      "license": "MIT",
+      "modified": false
+    },
+    {
+      "name": "D1DX/chatgpt-helper",
+      "commit": "7d316cb064786207759b8d692abe4506dab459e0",
+      "archive_sha256": "437231ba85c6a671258e3dd21c926b0d1dc2e1ccbf57097a1051317be6359775",
+      "source": "https://github.com/D1DX/chatgpt-helper",
+      "folder": "third-party/chatgpt-helper-upstream",
+      "license": "MIT",
+      "modified": false
+    },
+    {
+      "name": "restic",
+      "version": "0.19.1",
+      "platform": "windows_amd64",
+      "source": "https://github.com/restic/restic/releases/tag/v0.19.1",
+      "archive_sha256": "da948ad707ed690426473aaba2046cd61f8f90f6f0e7dab6be0d5796531de67d",
+      "binary_sha256": "b0dd1fd21eea5d8fe1325f55f7118213c21f36de8a261e04c0624a5ab9fd7830",
+      "modified": false,
+      "license": "BSD-2-Clause"
+    },
+    {
+      "name": "restic",
+      "version": "0.19.1",
+      "platform": "linux_amd64",
+      "source": "https://github.com/restic/restic/releases/tag/v0.19.1",
+      "archive_sha256": "f415415624dcc452f2a02b8c33641791a8c6d6d3b65bbb3543fcf9a25151585c",
+      "binary_sha256": "20d4142678d0d95ec11a4759def1b73fd9190abc9ca19e4b62d067c0b387e639",
+      "modified": false,
+      "license": "BSD-2-Clause"
+    }
+  ],
+  "derived_collectors": [
+    {
+      "name": "B/S Reserve Collector",
+      "base": "thekester/chatgpt-export",
+      "commit": "13568bf75688de74a5af563b20d5ccd28f4ad532",
+      "version": "0.6.59.1",
+      "modified": true,
+      "changes": "guarded GET/HEAD fetch and authFetch; post-export deletion checkboxes disabled; branded manifests",
+      "path": "collectors/chatgpt-export-safe"
+    },
+    {
+      "name": "B/S Reserve Memory Helper",
+      "base": "D1DX/chatgpt-helper",
+      "commit": "7d316cb064786207759b8d692abe4506dab459e0",
+      "version": "4.0.1.1",
+      "modified": true,
+      "changes": "guarded GET/HEAD fetch; branded manifest",
+      "path": "collectors/chatgpt-helper-safe"
+    }
+  ]
+}

@@ -1,0 +1,65 @@
+{
+  "version": "0.1.0-alpha.2",
+  "build": "20261028.3",
+  "go_version": "go1.27.3",
+  "restic_version": "0.19.1",
+  "baseline_path": "downloads/BS_Reserve_0.1.0-alpha.1_build20261028.2_win64.zip",
+  "baseline_sha256": "c9d057af6bd713ba847e7e7c85862a856c3f12dd89be75814563ff597c8683af",
+  "targets": [
+    {
+      "target": "windows_amd64",
+      "os": "windows",
+      "arch": "amd64",
+      "label": "Windows x64",
+      "requirements": "Windows 11 x64",
+      "file_suffix": "win64.zip",
+      "restic_asset": "restic_0.19.1_windows_amd64.zip",
+      "restic_archive_sha256": "da948ad707ed690426473aaba2046cd61f8f90f6f0e7dab6be0d5796531de67d",
+      "restic_binary_sha256": "b0dd1fd21eea5d8fe1325f55f7118213c21f36de8a261e04c0624a5ab9fd7830"
+    },
+    {
+      "target": "darwin_arm64",
+      "os": "darwin",
+      "arch": "arm64",
+      "label": "macOS · Apple Silicon",
+      "requirements": "macOS 13+ · Apple M-серии",
+      "file_suffix": "macos_arm64.zip",
+      "restic_asset": "restic_0.19.1_darwin_arm64.bz2",
+      "restic_archive_sha256": "7be0a144ccc377880f294204aa271d76e4b79554b42a751151d425ce6ebac143",
+      "restic_binary_sha256": "06582569ff2f10e1935a6f12187c76db02f0bae99e6e54098f2cdc374766d768"
+    },
+    {
+      "target": "darwin_amd64",
+      "os": "darwin",
+      "arch": "amd64",
+      "label": "macOS · Intel",
+      "requirements": "macOS 13+ · Intel x64",
+      "file_suffix": "macos_x64.zip",
+      "restic_asset": "restic_0.19.1_darwin_amd64.bz2",
+      "restic_archive_sha256": "c38d579622cf602f665234c5a8c315030b6cf70656028fe6dc29a786b60e5f35",
+      "restic_binary_sha256": "b2b553b402b9971b0c3f673d880397a421526f55a08f21fe5b82b5dd9e049a08"
+    },
+    {
+      "target": "linux_amd64",
+      "os": "linux",
+      "arch": "amd64",
+      "label": "Linux x64",
+      "requirements": "Современный Linux · x86_64",
+      "file_suffix": "linux_x64.tar.gz",
+      "restic_asset": "restic_0.19.1_linux_amd64.bz2",
+      "restic_archive_sha256": "f415415624dcc452f2a02b8c33641791a8c6d6d3b65bbb3543fcf9a25151585c",
+      "restic_binary_sha256": "20d4142678d0d95ec11a4759def1b73fd9190abc9ca19e4b62d067c0b387e639"
+    },
+    {
+      "target": "linux_arm64",
+      "os": "linux",
+      "arch": "arm64",
+      "label": "Linux ARM64",
+      "requirements": "Современный Linux · aarch64",
+      "file_suffix": "linux_arm64.tar.gz",
+      "restic_asset": "restic_0.19.1_linux_arm64.bz2",
+      "restic_archive_sha256": "a5f64aaab53d51e311fa3829124c5b703f2d14cf187d8640b6be3b2b49376465",
+      "restic_binary_sha256": "2fb45ac6f9071b6f20eb883953a188f9e7c7cb6bbe43c67a2e47ada4e85ee7f0"
+    }
+  ]
+}

@@ -1,0 +1,83 @@
+name: Test and Package B/S Reserve
+
+on:
+  push:
+    branches:
+      - publish/bs-reserve-platforms-20261028
+    paths:
+      - apps/bs-reserve/source/**
+      - apps/bs-reserve/release/**
+      - .github/workflows/reserve-platforms.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: reserve-platforms-alpha
+  cancel-in-progress: false
+
+jobs:
+  native:
+    name: Native ${{ matrix.target }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: linux_amd64
+            runner: ubuntu-24.04
+            options: --race
+          - target: linux_arm64
+            runner: ubuntu-24.04-arm
+            options: ''
+          - target: darwin_amd64
+            runner: macos-15-intel
+            options: ''
+          - target: darwin_arm64
+            runner: macos-15
+            options: ''
+          - target: windows_amd64
+            runner: windows-2025
+            options: ''
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16
+        with:
+          go-version: '1.27.3'
+          cache: false
+      - name: Native tests and packaged executable round trip
+        run: python apps/bs-reserve/release/check_native.py ${{ matrix.target }} ${{ matrix.options }}
+
+  package:
+    name: Build verified downloads
+    needs: native
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: publish/bs-reserve-platforms-20261028
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16
+        with:
+          go-version: '1.27.3'
+          cache: false
+      - name: Build five archives and verify components
+        run: python apps/bs-reserve/release/build.py
+      - name: Render download page from actual checksums
+        run: python apps/bs-reserve/release/publish.py
+      - name: Store verified downloads on the publication branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add downloads/BS_Reserve_0.1.0-alpha.2_build20261028.3_*
+          git add downloads/README.md README.md index.html
+          git add apps/bs-reserve/index.html apps/bs-reserve/README_RU.md apps/bs-reserve/TEST_REPORT_RU.md apps/bs-reserve/ALPHA_FEEDBACK_RU.md apps/bs-reserve/releases
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git commit -m "Publish tested B/S Reserve alpha.2 for Windows macOS and Linux"
+          git push origin HEAD:publish/bs-reserve-platforms-20261028
