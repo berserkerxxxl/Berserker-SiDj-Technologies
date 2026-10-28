@@ -82,6 +82,21 @@ func TestPlatformSecretProtection(t *testing.T) {
 	}
 }
 
+func TestConfigurationMovedBetweenPlatforms(t *testing.T) {
+	root := t.TempDir()
+	settings := Config{Repository: filepath.Join(root, "backup"), AutoBackup: true, WatchEnabled: true}
+	if err := writeJSON(filepath.Join(root, "config", "settings.json"), settings); err != nil {
+		t.Fatal(err)
+	}
+	loaded := loadConfig(root)
+	if loaded.Repository != settings.Repository || !loaded.WatchEnabled {
+		t.Fatal("moving Data discarded archive settings")
+	}
+	if loaded.AutoBackup != (runtime.GOOS == "windows") {
+		t.Fatal("unsupported background encryption should be disabled after moving Windows Data to Unix")
+	}
+}
+
 func TestUserDataDirectoryWritable(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("Windows keeps the existing portable directory beside the EXE")

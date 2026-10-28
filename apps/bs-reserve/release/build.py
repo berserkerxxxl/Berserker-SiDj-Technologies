@@ -27,7 +27,7 @@ import zipfile
 PROJECT = Path(__file__).resolve().parents[1]
 REPO = PROJECT.parents[1]
 SOURCE = PROJECT / "source"
-CONFIG = json.loads((PROJECT / "release/config.json").read_text())
+CONFIG = json.loads((PROJECT / "release/config.json").read_text(encoding="utf-8"))
 TARGETS = {entry["target"]: entry for entry in CONFIG["targets"]}
 EPOCH = 1793188800  # 2026-10-28 12:00 UTC; fixed archive metadata.
 ROOT_NAME = "BS_Reserve_Alpha"
@@ -151,7 +151,7 @@ def stage_bundle(target: str, work: Path, cache: Path) -> tuple[Path, Path, Path
         (bundle / "START.sh").unlink(missing_ok=True)
     for path in bundle.rglob("*.sh"):
         path.chmod(0o755)
-    components = json.loads((bundle / "COMPONENTS.json").read_text())
+    components = json.loads((bundle / "COMPONENTS.json").read_text(encoding="utf-8"))
     components["platform"] = target
     components["version"] = CONFIG["version"]
     components["build"] = CONFIG["build"]
@@ -161,12 +161,12 @@ def stage_bundle(target: str, work: Path, cache: Path) -> tuple[Path, Path, Path
         "archive_sha256": entry["restic_archive_sha256"], "binary_sha256": entry["restic_binary_sha256"],
         "modified": False, "license": "BSD-2-Clause",
     }]
-    (bundle / "COMPONENTS.json").write_text(json.dumps(components, ensure_ascii=False, indent=2) + "\n")
+    (bundle / "COMPONENTS.json").write_text(json.dumps(components, ensure_ascii=False, indent=2) + "\n", encoding="utf-8", newline="\n")
     sums = []
     for path in sorted(bundle.rglob("*")):
         if path.is_file() and path.name != "SHA256SUMS.txt":
             sums.append(f"{digest(path.read_bytes())}  {path.relative_to(bundle).as_posix()}")
-    (bundle / "SHA256SUMS.txt").write_text("\n".join(sums) + "\n")
+    (bundle / "SHA256SUMS.txt").write_text("\n".join(sums) + "\n", encoding="utf-8", newline="\n")
     return bundle, binary, restic
 
 
@@ -220,7 +220,7 @@ def release_all(output: Path, cache: Path) -> dict:
             item = {key: entry[key] for key in ["target", "os", "arch", "label", "requirements"]}
             item.update(name=name, bytes=path.stat().st_size, sha256=digest(path.read_bytes()),
                         app_sha256=digest(binary.read_bytes()), restic_sha256=digest(restic.read_bytes()))
-            (output / (name + ".sha256")).write_text(f"{item['sha256']}  {name}\n")
+            (output / (name + ".sha256")).write_text(f"{item['sha256']}  {name}\n", encoding="utf-8", newline="\n")
             result["targets"].append(item)
             print("Built", target, name, item["bytes"], item["sha256"], flush=True)
     return result
@@ -234,7 +234,7 @@ def main() -> None:
     manifest = release_all(args.output.resolve(), args.cache.resolve())
     dest = PROJECT / "releases" / (CONFIG["version"] + ".json")
     dest.parent.mkdir(exist_ok=True)
-    dest.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n")
+    dest.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8", newline="\n")
 
 
 if __name__ == "__main__":

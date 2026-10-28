@@ -15,7 +15,7 @@ permissions:
 
 concurrency:
   group: reserve-platforms-alpha
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   native:

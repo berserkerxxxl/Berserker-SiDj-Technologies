@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -121,6 +122,11 @@ func loadConfig(root string) Config {
 	c := Config{WatchEnabled: true}
 	if b, err := os.ReadFile(filepath.Join(root, "config", "settings.json")); err == nil {
 		_ = json.Unmarshal(b, &c)
+	}
+	// A Windows configuration can be copied with Data to another OS, but its
+	// DPAPI key cannot. Keep imports usable without repeated background failures.
+	if runtime.GOOS != "windows" {
+		c.AutoBackup = false
 	}
 	return c
 }
