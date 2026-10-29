@@ -128,6 +128,7 @@ def main() -> None:
         env["GOTOOLCHAIN"] = "local"
         if args.target == "windows_amd64":
             env["BS_TEST_SCHEDULER"] = "1"
+            env["BS_TEST_FOLDER_DIALOG"] = "1"
         command = ["go", "test", "-count=1", "-v"]
         if args.race:
             command.append("-race")

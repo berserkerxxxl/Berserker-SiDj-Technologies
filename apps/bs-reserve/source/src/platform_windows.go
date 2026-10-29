@@ -109,12 +109,20 @@ func folderPickerScript(initial string) string {
 	return "$ErrorActionPreference='Stop'; Add-Type -AssemblyName System.Windows.Forms; " +
 		"[System.Windows.Forms.Application]::EnableVisualStyles(); " +
 		"$d=New-Object System.Windows.Forms.FolderBrowserDialog; " +
-		"$o=New-Object System.Windows.Forms.Form; $o.TopMost=$true; $o.ShowInTaskbar=$false; " +
+		"$o=New-Object System.Windows.Forms.Form; $o.ShowInTaskbar=$false; " +
+		"$o.FormBorderStyle=[System.Windows.Forms.FormBorderStyle]::None; " +
+		"$o.StartPosition=[System.Windows.Forms.FormStartPosition]::CenterScreen; " +
+		"$o.Size=[System.Drawing.Size]::new(1,1); $o.Opacity=0; " +
 		"try { $d.Description='B/S Reserve: выберите папку'; $d.ShowNewFolderButton=$true; " +
 		"$p=" + psQuote(initial) + "; if([System.IO.Directory]::Exists($p)){$d.SelectedPath=$p}; " +
+		// A TopMost property on an owner that was never shown does not reliably
+		// give SHBrowseForFolder a topmost owner. Create/show its actual HWND
+		// before setting TopMost; the owned native dialog inherits that z-order.
+		"$o.Show(); $o.TopMost=$true; $o.Activate(); $o.BringToFront(); " +
+		"[System.Windows.Forms.Application]::DoEvents(); " +
 		"if($d.ShowDialog($o) -eq [System.Windows.Forms.DialogResult]::OK){" +
 		"[Console]::OutputEncoding=[System.Text.UTF8Encoding]::new($false); [Console]::Write($d.SelectedPath)" +
-		"} } finally { $d.Dispose(); $o.Dispose() }"
+		"} } finally { $d.Dispose(); $o.Close(); $o.Dispose() }"
 }
 func pickFolder(ctx context.Context, initial string) (string, error) {
 	if initial == "" {

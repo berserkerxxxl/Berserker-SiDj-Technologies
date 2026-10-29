@@ -159,6 +159,28 @@ func TestFolderPickerAPI(t *testing.T) {
 	if err := json.Unmarshal(w.Body.Bytes(), &result); err != nil || !result.Cancelled || result.Path != "" {
 		t.Fatal("cancelling folder dialog changed selection", err)
 	}
+	started, stopped := make(chan struct{}), make(chan struct{})
+	a.picker = func(ctx context.Context, initial string) (string, error) {
+		close(started)
+		<-ctx.Done()
+		return "", ctx.Err()
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	req = httptest.NewRequest("POST", "http://127.0.0.1:1234/api/pick-folder", bytes.NewBufferString(`{"Initial":""}`)).WithContext(ctx)
+	req.Header.Set("X-BS-Token", a.token)
+	w = httptest.NewRecorder()
+	go func() { a.handler().ServeHTTP(w, req); close(stopped) }()
+	<-started
+	cancel()
+	select {
+	case <-stopped:
+	case <-time.After(time.Second):
+		t.Fatal("cancelling the browser request left picker busy")
+	}
+	if !a.pickerMu.TryLock() {
+		t.Fatal("picker did not unlock after cancellation")
+	}
+	a.pickerMu.Unlock()
 }
 
 func TestScheduleTimeValidation(t *testing.T) {
