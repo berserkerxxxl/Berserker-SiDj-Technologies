@@ -42,6 +42,9 @@ type App struct {
 	cfg                 Config
 	job                 Job
 	seen                map[string]string
+	migrationPaths      map[string]string
+	pickerMu            sync.Mutex
+	picker              func(context.Context, string) (string, error)
 	shutdown            func()
 }
 
@@ -131,6 +134,7 @@ func (a *App) handler() http.Handler {
 	mux.HandleFunc("/api/source", a.source)
 	mux.HandleFunc("/api/file", a.file)
 	mux.HandleFunc("/api/download", a.download)
+	mux.HandleFunc("/api/pick-folder", a.chooseFolder)
 	mux.HandleFunc("/api/log", func(w http.ResponseWriter, r *http.Request) {
 		a.logMu.Lock()
 		b, _ := os.ReadFile(filepath.Join(a.store.Root, "logs", "operations.jsonl"))
@@ -192,7 +196,7 @@ func (a *App) state(w http.ResponseWriter, r *http.Request) {
 	sort.Slice(sources, func(i, j int) bool { return str(sources[i]["ImportedAt"]) > str(sources[j]["ImportedAt"]) })
 	sort.Slice(convos, func(i, j int) bool { return convos[i].Updated > convos[j].Updated })
 	_, keyErr := os.Stat(keyPath(a.store.Root, cfg.Repository))
-	respond(w, map[string]any{"Version": Version, "Build": Build, "Root": a.store.Root, "Inbox": filepath.Join(a.store.Root, "Inbox"), "Config": cfg, "Sources": sources, "Conversations": convos, "Notes": a.store.Cat.Notes, "Bytes": bytes, "Remembered": keyErr == nil, "Windows": runtime.GOOS == "windows", "OS": runtime.GOOS, "Arch": runtime.GOARCH})
+	respond(w, map[string]any{"Version": Version, "Build": Build, "Root": a.store.Root, "Inbox": filepath.Join(a.store.Root, "Inbox"), "Config": cfg, "Sources": sources, "Conversations": convos, "Notes": a.store.Cat.Notes, "Bytes": bytes, "Remembered": keyErr == nil, "Windows": runtime.GOOS == "windows", "OS": runtime.GOOS, "Arch": runtime.GOARCH, "FolderPicker": folderPickerAvailable()})
 }
 func (a *App) upload(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
@@ -254,6 +258,8 @@ func (a *App) upload(w http.ResponseWriter, r *http.Request) {
 
 type ActionRequest struct {
 	Action, Repository, Password, Confirm, Snapshot, Target, Folder, Kind, Text string
+	ScheduleTime                                                                string
+	ScheduleAtLogon                                                             bool
 	Remember, AutoBackup, WatchEnabled                                          bool
 }
 
@@ -291,7 +297,21 @@ func (a *App) action(w http.ResponseWriter, r *http.Request) {
 			}
 			return result, err
 		case "migration":
-			return a.store.Migration()
+			result, err := a.store.MigrationTo(req.Target)
+			if err != nil {
+				return nil, err
+			}
+			item := result.(map[string]any)
+			a.mu.Lock()
+			if a.migrationPaths == nil {
+				a.migrationPaths = map[string]string{}
+			}
+			a.migrationPaths[item["Name"].(string)] = item["Path"].(string)
+			a.mu.Unlock()
+			if err = a.updateConfig(func(c *Config) { c.MigrationDirectory = strings.TrimSpace(req.Target) }); err != nil {
+				item["Warning"] = "Пакет создан, но папку вывода не удалось запомнить: " + err.Error()
+			}
+			return item, nil
 		case "demo":
 			list, err := os.ReadDir(filepath.Join(filepath.Dir(a.exe), "examples"))
 			if err != nil {
@@ -309,7 +329,24 @@ func (a *App) action(w http.ResponseWriter, r *http.Request) {
 			}
 			return results, nil
 		case "schedule":
-			return nil, installSchedule(a.exe, a.store.Root)
+			at := req.ScheduleTime
+			if at == "" {
+				at = "19:00"
+			}
+			if err := validateScheduleTime(at); err != nil {
+				return nil, err
+			}
+			if err := installSchedule(a.exe, a.store.Root, at, req.ScheduleAtLogon); err != nil {
+				return nil, err
+			}
+			if err := a.updateConfig(func(c *Config) { c.ScheduleTime = at; c.ScheduleAtLogon = req.ScheduleAtLogon }); err != nil {
+				return nil, fmt.Errorf("задача Windows обновлена, но настройки интерфейса не сохранены: %w", err)
+			}
+			message := "Расписание Windows: ежедневно в " + at + " по времени этого ПК"
+			if req.ScheduleAtLogon {
+				message += " и при входе пользователя"
+			}
+			return message, nil
 		case "settings":
 			if req.AutoBackup {
 				if runtime.GOOS != "windows" {
@@ -530,9 +567,15 @@ func (a *App) download(w http.ResponseWriter, r *http.Request) {
 		fail(w, 400, errors.New("неверное имя пакета"))
 		return
 	}
+	a.mu.Lock()
+	p := a.migrationPaths[name]
+	a.mu.Unlock()
+	if p == "" {
+		p = filepath.Join(a.store.Root, "Outbox", name)
+	}
 	w.Header().Set("Content-Type", "application/zip")
 	w.Header().Set("Content-Disposition", mime.FormatMediaType("attachment", map[string]string{"filename": name}))
-	http.ServeFile(w, r, filepath.Join(a.store.Root, "Outbox", name))
+	http.ServeFile(w, r, p)
 }
 func portableName(name string) string {
 	name = pathBase(name)

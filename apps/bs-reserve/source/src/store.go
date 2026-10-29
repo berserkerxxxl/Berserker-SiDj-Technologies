@@ -18,8 +18,8 @@ import (
 	"time"
 )
 
-const Version = "0.1.0-alpha.2"
-const Build = "20261028.3"
+const Version = "0.1.0-alpha.3"
+const Build = "20261029.1"
 const maxSource = int64(2 << 30)
 const maxJSON = int64(256 << 20)
 const maxExpanded = uint64(8 << 30)
@@ -777,7 +777,7 @@ func (s *Store) ImportFolder(folder string) (ImportResult, error) {
 	return result, s.save()
 }
 
-const recoveryText = "B/S Reserve 0.1.0-alpha.2 — независимое восстановление\n\n" +
+const recoveryText = "B/S Reserve 0.1.0-alpha.3 — независимое восстановление\n\n" +
 	"Резервный репозиторий restic зашифрован. Рабочий каталог Vault не зашифрован.\n" +
 	"Для аварийного восстановления нужны движок restic, весь репозиторий и его пароль.\n" +
 	"В командной строке: restic -r \"ПУТЬ_К_РЕПОЗИТОРИЮ\" snapshots\n" +

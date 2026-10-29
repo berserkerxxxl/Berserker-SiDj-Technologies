@@ -5,6 +5,7 @@ import (
 	_ "embed"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -16,6 +17,30 @@ import (
 var offlineHTML string
 
 func (s *Store) Migration() (any, error) {
+	return s.MigrationTo("")
+}
+
+func (s *Store) MigrationTo(directory string) (any, error) {
+	directory = strings.TrimSpace(directory)
+	if directory == "" {
+		directory = filepath.Join(s.Root, "Outbox")
+	}
+	if !filepath.IsAbs(directory) {
+		return nil, errors.New("укажите полный путь к папке пакета переноса")
+	}
+	directory = filepath.Clean(directory)
+	rel, err := filepath.Rel(canonicalPath(s.Vault), canonicalPath(directory))
+	if err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return nil, errors.New("папка пакета переноса должна находиться вне Vault")
+	}
+	result, err := s.migrationToDirectory(directory)
+	if err != nil {
+		return nil, fmt.Errorf("пакет переноса не создан в %s: %w", directory, err)
+	}
+	return result, nil
+}
+
+func (s *Store) migrationToDirectory(directory string) (any, error) {
 	check := s.Verify()
 	if len(check.Errors) > 0 {
 		return nil, errors.New("сначала исправьте повреждения рабочего архива")
@@ -25,13 +50,16 @@ func (s *Store) Migration() (any, error) {
 	if len(s.Cat.Sources) == 0 && len(s.Cat.Notes) == 0 {
 		return nil, errors.New("сначала добавьте данные")
 	}
+	if err := os.MkdirAll(directory, 0700); err != nil {
+		return nil, err
+	}
 	name := "BS_Reserve_Migration_" + time.Now().UTC().Format("20060102_150405") + "_" + randomID()[:6] + ".zip"
-	temp, err := os.CreateTemp(filepath.Join(s.Root, "Outbox"), ".migration-*")
+	temp, err := os.CreateTemp(directory, ".migration-*")
 	if err != nil {
 		return nil, err
 	}
 	tmp := temp.Name()
-	defer os.Remove(tmp)
+	defer func() { _ = temp.Close(); _ = os.Remove(tmp) }()
 	zw := zip.NewWriter(temp)
 	addBytes := func(name string, b []byte) error {
 		w, e := zw.Create(name)
@@ -141,7 +169,7 @@ func (s *Store) Migration() (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	final := filepath.Join(s.Root, "Outbox", name)
+	final := filepath.Join(directory, name)
 	if err = os.Rename(tmp, final); err != nil {
 		return nil, err
 	}

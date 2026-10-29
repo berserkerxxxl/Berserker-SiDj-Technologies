@@ -20,6 +20,9 @@ var ResticHash string
 
 type Config struct {
 	Repository, LastBackup, LastCheck, LastRestore, LastSnapshot string
+	MigrationDirectory                                           string
+	ScheduleTime                                                 string
+	ScheduleAtLogon                                              bool
 	AutoBackup, WatchEnabled                                     bool
 }
 type Engine struct {
@@ -119,7 +122,7 @@ func repositoryPath(p, vault string) (string, error) {
 	return p, nil
 }
 func loadConfig(root string) Config {
-	c := Config{WatchEnabled: true}
+	c := Config{WatchEnabled: true, ScheduleTime: "19:00", ScheduleAtLogon: true}
 	if b, err := os.ReadFile(filepath.Join(root, "config", "settings.json")); err == nil {
 		_ = json.Unmarshal(b, &c)
 	}
@@ -127,6 +130,12 @@ func loadConfig(root string) Config {
 	// DPAPI key cannot. Keep imports usable without repeated background failures.
 	if runtime.GOOS != "windows" {
 		c.AutoBackup = false
+	}
+	if c.MigrationDirectory != "" && !filepath.IsAbs(c.MigrationDirectory) {
+		c.MigrationDirectory = ""
+	}
+	if validateScheduleTime(c.ScheduleTime) != nil {
+		c.ScheduleTime = "19:00"
 	}
 	return c
 }

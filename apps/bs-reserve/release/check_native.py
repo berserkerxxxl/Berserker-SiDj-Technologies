@@ -85,7 +85,8 @@ def smoke(binary: Path, target: str, work: Path) -> None:
         assert len(snapshots) == 1
         restored = action("restore", **credentials, Snapshot=snapshots[0]["ID"], Target=str(work / "Восстановлено"))
         assert restored["Checked"] > 0 and not restored["Errors"]
-        migration = action("migration")
+        migration = action("migration", Target=str(work / "Пакет на другом диске"))
+        assert Path(migration["Path"]).parent == work / "Пакет на другом диске"
         package = Path(migration["Path"]).read_bytes()
         assert hashlib.sha256(package).hexdigest() == migration["SHA256"]
         with zipfile.ZipFile(io.BytesIO(package)) as archive:
@@ -125,6 +126,8 @@ def main() -> None:
         env = os.environ.copy()
         env["BS_TEST_RESTIC"] = str(restic)
         env["GOTOOLCHAIN"] = "local"
+        if args.target == "windows_amd64":
+            env["BS_TEST_SCHEDULER"] = "1"
         command = ["go", "test", "-count=1", "-v"]
         if args.race:
             command.append("-race")

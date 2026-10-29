@@ -1,11 +1,16 @@
 package main
 
 import (
+	"context"
+	"encoding/base64"
+	"encoding/binary"
 	"errors"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"syscall"
+	"unicode/utf16"
 	"unsafe"
 )
 
@@ -55,20 +60,71 @@ func lockData(root string) (func(), error) {
 	return func() { syscall.CloseHandle(h) }, nil
 }
 func psQuote(s string) string { return "'" + strings.ReplaceAll(s, "'", "''") + "'" }
-func installSchedule(exe, root string) error {
-	name := "BS_Reserve_" + sum([]byte(strings.ToLower(root)))[:10]
+func scheduleTaskName(root string) string {
+	return "BS_Reserve_" + sum([]byte(strings.ToLower(root)))[:10]
+}
+func powerShellArgs(script string) []string {
+	units := utf16.Encode([]rune(script))
+	bytes := make([]byte, len(units)*2)
+	for i, unit := range units {
+		binary.LittleEndian.PutUint16(bytes[i*2:], unit)
+	}
+	return []string{"-NoProfile", "-STA", "-EncodedCommand", base64.StdEncoding.EncodeToString(bytes)}
+}
+func scheduleScript(exe, root, at string, atLogon bool) (string, error) {
+	if err := validateScheduleTime(at); err != nil {
+		return "", err
+	}
+	name := scheduleTaskName(root)
 	arguments := "--run-once --data \"" + root + "\""
+	triggers := "$t=@((New-ScheduledTaskTrigger -Daily -At " + psQuote(at) + ")"
+	if atLogon {
+		triggers += ",(New-ScheduledTaskTrigger -AtLogOn -User $u)"
+	}
+	triggers += "); "
 	script := "$ErrorActionPreference='Stop'; " +
 		"$u=[System.Security.Principal.WindowsIdentity]::GetCurrent().Name; " +
 		"$a=New-ScheduledTaskAction -Execute " + psQuote(exe) + " -Argument " + psQuote(arguments) + "; " +
-		"$t=@((New-ScheduledTaskTrigger -Daily -At '19:00'),(New-ScheduledTaskTrigger -AtLogOn -User $u)); " +
+		triggers +
 		"$p=New-ScheduledTaskPrincipal -UserId $u -LogonType Interactive -RunLevel Limited; " +
 		"$s=New-ScheduledTaskSettingsSet -StartWhenAvailable -MultipleInstances IgnoreNew; " +
 		"Register-ScheduledTask -TaskName " + psQuote(name) + " -Action $a -Trigger $t -Principal $p -Settings $s -Description 'B/S Reserve: local import and encrypted backup' -Force | Out-Null"
-	cmd := exec.Command("powershell.exe", "-NoProfile", "-NonInteractive", "-Command", script)
+	return script, nil
+}
+func installSchedule(exe, root, at string, atLogon bool) error {
+	script, err := scheduleScript(exe, root, at, atLogon)
+	if err != nil {
+		return err
+	}
+	cmd := exec.Command("powershell.exe", powerShellArgs(script)...)
 	hideCommand(cmd)
 	if _, err := cmd.CombinedOutput(); err != nil {
 		return errors.New("Windows не разрешила создать задачу; запустите импорт вручную или настройте Планировщик")
 	}
 	return nil
+}
+
+func folderPickerAvailable() bool { return true }
+func folderPickerScript(initial string) string {
+	return "$ErrorActionPreference='Stop'; Add-Type -AssemblyName System.Windows.Forms; " +
+		"[System.Windows.Forms.Application]::EnableVisualStyles(); " +
+		"$d=New-Object System.Windows.Forms.FolderBrowserDialog; " +
+		"$o=New-Object System.Windows.Forms.Form; $o.TopMost=$true; $o.ShowInTaskbar=$false; " +
+		"try { $d.Description='B/S Reserve: выберите папку'; $d.ShowNewFolderButton=$true; " +
+		"$p=" + psQuote(initial) + "; if([System.IO.Directory]::Exists($p)){$d.SelectedPath=$p}; " +
+		"if($d.ShowDialog($o) -eq [System.Windows.Forms.DialogResult]::OK){" +
+		"[Console]::OutputEncoding=[System.Text.UTF8Encoding]::new($false); [Console]::Write($d.SelectedPath)" +
+		"} } finally { $d.Dispose(); $o.Dispose() }"
+}
+func pickFolder(ctx context.Context, initial string) (string, error) {
+	if initial == "" {
+		initial, _ = os.UserHomeDir()
+	}
+	cmd := exec.CommandContext(ctx, "powershell.exe", powerShellArgs(folderPickerScript(initial))...)
+	hideCommand(cmd)
+	out, err := cmd.Output()
+	if err != nil {
+		return "", errors.New("не удалось открыть выбор папки; укажите путь вручную")
+	}
+	return strings.TrimSpace(strings.TrimPrefix(string(out), "\ufeff")), nil
 }
