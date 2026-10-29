@@ -18,16 +18,17 @@ import (
 	"time"
 )
 
-const Version = "0.1.0-alpha.4"
-const Build = "20261029.2"
+const Version = "0.1.0-alpha.5"
+const Build = "20261029.3"
 const maxSource = int64(2 << 30)
 const maxJSON = int64(256 << 20)
 const maxExpanded = uint64(8 << 30)
 const maxEntries = 100000
 
 type Entry struct {
-	Path, Hash string
-	Size       int64
+	Path, Hash   string
+	Size         int64
+	OriginalName string `json:",omitempty"`
 }
 type Source struct {
 	ID, Name, Kind, ImportedAt, Status string
@@ -470,6 +471,7 @@ func number(v any) float64 {
 type Message struct {
 	ID, Parent, Role, Text string
 	Created                float64
+	Attachments            []Attachment `json:",omitempty"`
 }
 
 func contentText(v any) string {
@@ -501,7 +503,7 @@ func contentText(v any) string {
 	return ""
 }
 func messages(obj map[string]any) []Message {
-	var out []Message
+	out := []Message{}
 	if mapping, ok := obj["mapping"].(map[string]any); ok {
 		for id, raw := range mapping {
 			node, ok := raw.(map[string]any)
@@ -777,7 +779,7 @@ func (s *Store) ImportFolder(folder string) (ImportResult, error) {
 	return result, s.save()
 }
 
-const recoveryText = "B/S Reserve 0.1.0-alpha.4 — независимое восстановление\n\n" +
+const recoveryText = "B/S Reserve 0.1.0-alpha.5 — независимое восстановление\n\n" +
 	"Резервный репозиторий restic зашифрован. Рабочий каталог Vault не зашифрован.\n" +
 	"Для аварийного восстановления нужны движок restic, весь репозиторий и его пароль.\n" +
 	"В командной строке: restic -r \"ПУТЬ_К_РЕПОЗИТОРИЮ\" snapshots\n" +

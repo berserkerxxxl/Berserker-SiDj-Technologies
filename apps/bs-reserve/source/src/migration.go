@@ -104,10 +104,12 @@ func (s *Store) migrationToDirectory(directory string) (any, error) {
 		return nil, err
 	}
 	type archivedChat struct {
-		ID, Title string
-		Messages  []Message
-		Versions  int
+		ID, Title   string
+		Messages    []Message
+		Versions    int
+		Attachments []Attachment
 	}
+	assets := s.indexAssets()
 	chats := []archivedChat{}
 	for _, c := range s.Cat.Conversations {
 		for _, rev := range c.Revisions {
@@ -126,18 +128,28 @@ func (s *Store) migrationToDirectory(directory string) (any, error) {
 				temp.Close()
 				return nil, e
 			}
-			chats = append(chats, archivedChat{ID: c.ID, Title: c.Title, Messages: messages(obj), Versions: len(c.Revisions)})
+			msgs, attachments := messagesWithAssets(obj, c.ID, assets)
+			chats = append(chats, archivedChat{ID: c.ID, Title: c.Title, Messages: msgs, Versions: len(c.Revisions), Attachments: attachments})
 		}
 	}
 	type archivedFile struct {
-		Name, Path, Hash string
-		Size             int64
+		Name, Path, Hash, SourcePath, SourceID string
+		Size                                   int64
 	}
+	type mappingReport struct {
+		SourceID string
+		AssetNameReport
+	}
+	mappingReports := []mappingReport{}
 	files := []archivedFile{}
 	seen := map[string]bool{}
 	for _, src := range s.Cat.Sources {
-		for _, e := range src.Entries {
-			dest := "files/" + e.Hash + "/" + portableName(pathBase(e.Path))
+		entries, report := s.namedEntries(src)
+		if report.Declared != 0 || len(report.Warnings) != 0 {
+			mappingReports = append(mappingReports, mappingReport{SourceID: src.ID, AssetNameReport: report})
+		}
+		for _, e := range entries {
+			dest := assetExportPath(e.Hash, entryName(e))
 			if seen[dest] {
 				continue
 			}
@@ -147,11 +159,15 @@ func (s *Store) migrationToDirectory(directory string) (any, error) {
 				temp.Close()
 				return nil, err
 			}
-			files = append(files, archivedFile{Name: e.Path, Path: dest, Hash: e.Hash, Size: e.Size})
+			files = append(files, archivedFile{Name: entryName(e), Path: dest, Hash: e.Hash, Size: e.Size, SourcePath: e.Path, SourceID: src.ID})
 		}
 	}
-	data, _ := json.Marshal(map[string]any{"Chats": chats, "Files": files, "Created": now(), "Notes": s.Cat.Notes})
-	if err = addBytes("index.html", []byte(strings.ReplaceAll(offlineHTML, "__ARCHIVE_DATA__", string(data)))); err == nil {
+	manifest, _ := json.MarshalIndent(map[string]any{"Schema": 1, "Version": Version, "Build": Build, "Files": files, "AssetMappings": mappingReports}, "", "  ")
+	data, _ := json.Marshal(map[string]any{"Chats": chats, "Files": files, "Created": now(), "Notes": s.Cat.Notes, "AssetMappings": mappingReports})
+	if err = addBytes("FILES_MANIFEST.json", manifest); err == nil {
+		err = addBytes("index.html", []byte(strings.ReplaceAll(offlineHTML, "__ARCHIVE_DATA__", string(data))))
+	}
+	if err == nil {
 		err = addBytes("START_HERE_RU.txt", []byte("Это НЕЗАШИФРОВАННЫЙ пакет переноса B/S Reserve.\nОткройте index.html: чтение и поиск работают без сети.\nVault содержит исходные данные, все версии и записи памяти.\nfiles содержит оригиналы с восстановленными именами.\nДля нового ChatGPT выбирайте нужные файлы и инструкции; старый аккаунт не воссоздаётся.\nДля локальной LLM используйте JSON/Markdown и оригиналы документов.\n"+recoveryText))
 	}
 	if err == nil {

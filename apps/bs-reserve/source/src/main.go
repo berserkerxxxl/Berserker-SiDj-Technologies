@@ -149,7 +149,7 @@ func (a *App) handler() http.Handler {
 		w.Header().Set("Cache-Control", "no-store")
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("Referrer-Policy", "no-referrer")
-		w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; form-action 'self'; base-uri 'none'")
+		w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; frame-ancestors 'none'; form-action 'self'; base-uri 'none'")
 		if r.Host != "" {
 			host, _, err := net.SplitHostPort(r.Host)
 			if err != nil || host != "127.0.0.1" {
@@ -483,7 +483,8 @@ func (a *App) conversation(w http.ResponseWriter, r *http.Request) {
 				fail(w, 500, errors.New("JSON не прочитан"))
 				return
 			}
-			respond(w, map[string]any{"Conversation": c, "Revision": h, "Messages": messages(obj)})
+			msgs, attachments := messagesWithAssets(obj, c.ID, a.store.indexAssets())
+			respond(w, map[string]any{"Conversation": c, "Revision": h, "Messages": msgs, "Attachments": attachments})
 			return
 		}
 	}
@@ -540,7 +541,12 @@ func (a *App) source(w http.ResponseWriter, r *http.Request) {
 		fail(w, 404, errors.New("источник не найден"))
 		return
 	}
-	respond(w, s)
+	entries, report := a.store.namedEntries(s)
+	s.Entries = entries
+	respond(w, struct {
+		Source
+		AssetNames AssetNameReport
+	}{s, report})
 }
 func (a *App) file(w http.ResponseWriter, r *http.Request) {
 	index, err := strconv.Atoi(r.URL.Query().Get("index"))
@@ -555,9 +561,10 @@ func (a *App) file(w http.ResponseWriter, r *http.Request) {
 		fail(w, 404, errors.New("файл не найден"))
 		return
 	}
-	entry := s.Entries[index]
+	entries, _ := a.store.namedEntries(s)
+	entry := entries[index]
 	w.Header().Set("Content-Type", "application/octet-stream")
-	w.Header().Set("Content-Disposition", mime.FormatMediaType("attachment", map[string]string{"filename": portableName(pathBase(entry.Path))}))
+	w.Header().Set("Content-Disposition", mime.FormatMediaType("attachment", map[string]string{"filename": portableName(pathBase(entryName(entry)))}))
 	http.ServeFile(w, r, a.store.objectPath(entry.Hash))
 }
 func pathBase(p string) string { return filepath.Base(strings.ReplaceAll(p, "\\", "/")) }
@@ -589,7 +596,24 @@ func portableName(name string) string {
 	}
 	n := strings.Trim(b.String(), " .")
 	if len([]rune(n)) > 150 {
-		n = string([]rune(n)[:150])
+		ext := filepath.Ext(n)
+		if len([]rune(ext)) > 20 {
+			ext = ""
+		}
+		stem := strings.TrimSuffix(n, ext)
+		n = string([]rune(stem)[:150-len([]rune(ext))]) + ext
+	}
+	// Also fit UTF-8 filesystems, whose component limit is counted in bytes.
+	if len(n) > 200 {
+		ext := filepath.Ext(n)
+		if len(ext) > 60 {
+			ext = ""
+		}
+		stem := []rune(strings.TrimSuffix(n, ext))
+		for len(string(stem))+len(ext) > 200 {
+			stem = stem[:len(stem)-1]
+		}
+		n = string(stem) + ext
 	}
 	if n == "" {
 		n = "file.bin"
