@@ -19,15 +19,15 @@ SHA-256: `c59ea53da225b8e760a76f180ea05ddb065ac865d3ceba6d76cd61c448619b96`
 
 # B/S Reserve — ALPHA
 
-Версия 0.1.0-alpha.3, билд 20261029.1.
+Версия 0.1.0-alpha.4, билд 20261029.2.
 
 | Платформа | Архив | SHA-256 |
 | --- | --- | --- |
-| Windows x64 | [BS_Reserve_0.1.0-alpha.3_build20261029.1_win64.zip](BS_Reserve_0.1.0-alpha.3_build20261029.1_win64.zip) | `ef44604b8a59f832d54dd3970d959c57482e99ca667c2ef34c933de837854079` |
-| macOS · Apple Silicon | [BS_Reserve_0.1.0-alpha.3_build20261029.1_macos_arm64.zip](BS_Reserve_0.1.0-alpha.3_build20261029.1_macos_arm64.zip) | `3ea34f218ce424bc7d9d74c60df1ea24061c254c599d1adda947213ff4c5372f` |
-| macOS · Intel | [BS_Reserve_0.1.0-alpha.3_build20261029.1_macos_x64.zip](BS_Reserve_0.1.0-alpha.3_build20261029.1_macos_x64.zip) | `624ae4fc91f22ea4109bc34e56f87b78053332beec7dbe249c10d7b5a464ef64` |
-| Linux x64 | [BS_Reserve_0.1.0-alpha.3_build20261029.1_linux_x64.tar.gz](BS_Reserve_0.1.0-alpha.3_build20261029.1_linux_x64.tar.gz) | `19def248677590779fb31c06f729260f4bfebc4f8fc1d20ff65d210ded304f34` |
-| Linux ARM64 | [BS_Reserve_0.1.0-alpha.3_build20261029.1_linux_arm64.tar.gz](BS_Reserve_0.1.0-alpha.3_build20261029.1_linux_arm64.tar.gz) | `b557d7a2fd275a6fd81c72bea1778ae2db429d670bb97add79fbd1417ba0bd74` |
+| Windows x64 | [BS_Reserve_0.1.0-alpha.4_build20261029.2_win64.zip](BS_Reserve_0.1.0-alpha.4_build20261029.2_win64.zip) | `58d79a604b06c6eab99943099b94fde7d30a80c8172f6efe182f3f8904febc81` |
+| macOS · Apple Silicon | [BS_Reserve_0.1.0-alpha.4_build20261029.2_macos_arm64.zip](BS_Reserve_0.1.0-alpha.4_build20261029.2_macos_arm64.zip) | `ba5923c8a46731185353bd5f852e28be098c2268c174c2098d92680e60d3bced` |
+| macOS · Intel | [BS_Reserve_0.1.0-alpha.4_build20261029.2_macos_x64.zip](BS_Reserve_0.1.0-alpha.4_build20261029.2_macos_x64.zip) | `1fa94cab484fe1918f2a3243abdc8c9529b4edcfa080979b866f6200a2b0c542` |
+| Linux x64 | [BS_Reserve_0.1.0-alpha.4_build20261029.2_linux_x64.tar.gz](BS_Reserve_0.1.0-alpha.4_build20261029.2_linux_x64.tar.gz) | `724dc17a9d0cc259fad914f031ac8ff577dd7f75a30cbd27dc6127793a1ddfae` |
+| Linux ARM64 | [BS_Reserve_0.1.0-alpha.4_build20261029.2_linux_arm64.tar.gz](BS_Reserve_0.1.0-alpha.4_build20261029.2_linux_arm64.tar.gz) | `ae757887792834fc44c7e32270585c81143078c8c25b0fde3803a18cfccfee75` |
 
 [Описание и ограничения](../apps/bs-reserve/README_RU.md) · [Тестирование](../apps/bs-reserve/ALPHA_FEEDBACK_RU.md).
 
