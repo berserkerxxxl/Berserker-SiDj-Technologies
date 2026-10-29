@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/xml"
 	"os"
 	"os/exec"
@@ -30,6 +31,10 @@ func TestWindowsScheduleRegistration(t *testing.T) {
 		output, err := exec.Command("powershell.exe", powerShellArgs(query)...).Output()
 		if err != nil {
 			t.Fatal(err)
+		}
+		// Export-ScheduledTask declares UTF-16, while Console writes UTF-8.
+		if end := bytes.Index(output, []byte("?>")); bytes.HasPrefix(output, []byte("<?xml")) && end >= 0 {
+			output = output[end+2:]
 		}
 		var task struct {
 			Triggers struct {
