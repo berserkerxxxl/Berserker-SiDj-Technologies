@@ -1,11 +1,12 @@
 <!doctype html><html lang="ru"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' data: file:; connect-src 'none'; base-uri 'none'">
-<title>B/S Reserve — независимый архив</title>
+<title>B/S Reserve — независимый архив</title><link rel="icon" type="image/x-icon" href="favicon.ico">
 <style>
 [hidden]{display:none!important}
 .msg.msg-user{background:#172b46;border-left:3px solid #85b5ff;border-radius:10px;margin:12px 0;padding:15px 17px}.msg.msg-assistant{background:#16332f;border-left:3px solid #72e0c3;border-radius:10px;margin:12px 0;padding:15px 17px}.msg-user .role{color:#b6d3ff;font-weight:700}.msg-assistant .role{color:#a6f2dc;font-weight:700}
 :root{color-scheme:dark}*{box-sizing:border-box}body{margin:0;background:#0c1220;color:#e4eaf4;font:15px/1.6 system-ui,sans-serif}header{padding:20px 32px;border-bottom:1px solid #283246;display:flex;align-items:center;justify-content:space-between;gap:20px}h1{font-size:22px;margin:0}small{color:#94a3ba}main{display:grid;grid-template-columns:340px minmax(0,1fr);height:calc(100vh - 110px)}aside{padding:20px;border-right:1px solid #283246;overflow:auto}article{padding:26px 40px;overflow:auto;overflow-wrap:anywhere}input{width:100%;padding:12px;background:#182137;color:inherit;border:1px solid #35415c;border-radius:9px}button,a{color:#6cdeca}button{display:block;text-align:left;padding:10px 8px;width:100%;border:0;background:none;font:inherit;cursor:pointer}header button{width:auto;border:1px solid #35415c;border-radius:9px;flex-shrink:0}a:hover{text-decoration:none}.msg{border-top:1px solid #263247;padding:18px 0}pre{white-space:pre-wrap;overflow-wrap:anywhere;font:14px/1.65 system-ui,sans-serif}.role{font-size:12px;color:#77d8c8;text-transform:uppercase}h2{font-size:23px}details{margin-top:26px}.attachment{border:1px solid #35415c;border-radius:10px;padding:12px;margin:10px 0;overflow-wrap:anywhere}.attachment img{display:block;max-width:100%;max-height:640px;object-fit:contain;margin-top:12px}.attachment small{display:block}.attachment button{width:auto}.attachment a{display:inline-block;margin-top:6px}.hint{color:#94a3ba;font-size:13px}@media(max-width:700px){header{padding:16px;align-items:flex-start;flex-wrap:wrap}main{grid-template-columns:1fr;height:auto}aside{max-height:40vh}article{padding:20px}}
 .file-action{min-height:44px;padding:11px 18px;border-radius:9px;font-weight:700;text-decoration:none;line-height:1.4;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px}.file-save{background:#72e0c3;color:#102820;border:1px solid #a5f2dc}.file-save:hover{background:#9cebd6;color:#102820;border-color:#c7fff0}.file-preview{background:#85b5ff;color:#0b172b;border:1px solid #b9d5ff}.file-preview:hover{background:#b2d0ff;color:#0b172b;border-color:#d6e6ff}.file-action:focus-visible{outline:3px solid #fff;outline-offset:3px}.file-action:disabled{opacity:.55;cursor:wait}
+.chat-rich{white-space:pre-wrap;overflow-wrap:anywhere;font:14px/1.7 "Segoe UI",system-ui,sans-serif;margin:10px 0}.chat-link{color:#9ccaff;text-decoration:underline;text-underline-offset:3px}.chat-link:hover{color:#c8e3ff}.chat-missing-link{color:#e9bb83;text-decoration:underline dotted;cursor:help}
 </style><header><div><h1>B/S Reserve · Независимый архив</h1><small>Работает без аккаунта OpenAI и без сети. Все доступные ветви и версии сохранены в Vault.</small></div><button id="all-files" class="file-action file-preview">Файлы и вложения</button></header>
 <main><aside><input id="q" placeholder="Поиск по всем текстам" aria-label="Поиск по всем текстам"><div id="list"></div></aside><article id="reader"><h2>Наша память — в твоих руках</h2><p>Выбери переписку слева. Память и инструкции находятся в Vault/knowledge, документы — в files.</p><p>Вложения с явной связью показаны в чатах. Кнопка «Файлы и вложения» открывает общий список, в том числе файлы без такой связи.</p></article></main>
 <script id="archive-data" type="application/json">__ARCHIVE_DATA__</script>
@@ -13,6 +14,41 @@
 const data=JSON.parse(document.getElementById('archive-data').textContent);
 const list=document.getElementById('list'),reader=document.getElementById('reader');
 function el(tag,text,cls){const x=document.createElement(tag);if(text!==undefined)x.textContent=text;if(cls)x.className=cls;return x}
+
+function renderArchiveText(value,files,onSaved){
+ const box=el('div','','chat-rich'),input=String(value??'');
+ const pattern=/\[([^\]\n]{1,300})\]\(((?:https?:\/\/|sandbox:)[^\s)]+)\)|<Link\s+url="(https?:\/\/[^"]+)"[^>]*>([^<]{1,300})<\/Link>|(https?:\/\/[^\s<>"']+)/g;
+ let start=0,match;
+ while((match=pattern.exec(input))!==null){
+  if(match.index>start)box.append(document.createTextNode(input.slice(start,match.index)));
+  const url=match[2]||match[3]||match[5],label=match[1]||match[4]||url;
+  const bare=!!match[5],clean=bare?url.replace(/[.,;:!?]+$/,''):url,tail=bare?url.slice(clean.length):'';
+  if(clean.startsWith('sandbox:')){
+   let filename=clean.split('/').pop();
+   try{filename=decodeURIComponent(filename)}catch(_){}
+   const candidates=(files||[]).filter(f=>(f.Name||'').replace(/\\/g,'/').split('/').pop()===filename);
+   if(candidates.length===1){
+    const link=el('a',label,'chat-link');link.href='#';link.title='Скачать сохранённый файл';
+    link.onclick=e=>{e.preventDefault();onSaved(candidates[0])};box.append(link);
+   }else{
+    const note=el('span',label+' [файл отсутствует в архиве]','chat-missing-link');
+    note.title='Ссылка ChatGPT ведёт на временный файл. В текущем архиве нет подтверждённого файла для скачивания.';
+    box.append(note);
+   }
+  }else{
+   try{
+    const parsed=new URL(clean);
+    if(parsed.protocol!=='https:'&&parsed.protocol!=='http:')throw Error('scheme');
+    const a=el('a',label,'chat-link');a.href=parsed.href;a.target='_blank';a.rel='noopener noreferrer';box.append(a);
+   }catch(_){box.append(document.createTextNode(match[0]))}
+  }
+  if(tail)box.append(document.createTextNode(tail));
+  start=pattern.lastIndex;
+ }
+ if(start<input.length)box.append(document.createTextNode(input.slice(start)));
+ return box;
+}
+
 function nameOf(name){return name.replace(/\\/g,'/').split('/').pop()}
 function localPath(path){return path.split('/').map(encodeURIComponent).join('/')}
 function attachment(f){const box=el('div','','attachment'),name=nameOf(f.Name),a=el('a','Скачать','file-action file-save');a.href=localPath(f.Path);a.download=name;box.append(el('strong',name),el('small',f.Size+' Б · SHA-256 '+f.Hash.slice(0,16)+'…'),a);
@@ -26,7 +62,7 @@ if(/\.(png|jpe?g|gif|webp|bmp)$/i.test(name)){
   picture.src=localPath(f.Path);box.append(picture);
  };box.append(b)
 }return box}
-function show(c){reader.replaceChildren(el('h2',c.Title),el('small',c.ID+' · Версий: '+c.Versions));const placed=new Set();c.Messages.forEach(m=>{const b=el('section','','msg'+(m.Role==='user'?' msg-user':m.Role==='assistant'?' msg-assistant':''));b.append(el('div',({user:'Пользователь',assistant:'Ассистент',system:'Система',tool:'Инструмент',developer:'Инструкции'}[m.Role]||'Сообщение'),'role'),el('pre',m.Text));(m.Attachments||[]).forEach(f=>{placed.add(f.Path);b.append(attachment(f))});reader.append(b)});const rest=(c.Attachments||[]).filter(f=>!placed.has(f.Path));if(rest.length){reader.append(el('h3','Другие вложения этого чата'));rest.forEach(f=>reader.append(attachment(f)))}reader.scrollTop=0}
+function show(c){reader.replaceChildren(el('h2',c.Title),el('small',c.ID+' · Версий: '+c.Versions));const placed=new Set();c.Messages.forEach(m=>{const b=el('section','','msg'+(m.Role==='user'?' msg-user':m.Role==='assistant'?' msg-assistant':''));b.append(el('div',({user:'Пользователь',assistant:'Ассистент',system:'Система',tool:'Инструмент',developer:'Инструкции'}[m.Role]||'Сообщение'),'role'),renderArchiveText(m.Text,c.Attachments||[],f=>{const a=el('a');a.href=localPath(f.Path);a.download=nameOf(f.Name);document.body.append(a);a.click();a.remove()}));(m.Attachments||[]).forEach(f=>{placed.add(f.Path);b.append(attachment(f))});reader.append(b)});const rest=(c.Attachments||[]).filter(f=>!placed.has(f.Path));if(rest.length){reader.append(el('h3','Другие вложения этого чата'));rest.forEach(f=>reader.append(attachment(f)))}reader.scrollTop=0}
 function render(){const q=document.getElementById('q').value.toLowerCase();list.replaceChildren();data.Chats.filter(c=>(c.Title+'\n'+c.Messages.map(m=>m.Text).join('\n')).toLowerCase().includes(q)).forEach(c=>{const b=el('button',c.Title);b.onclick=()=>show(c);list.append(b)})}
 function showFiles(){reader.replaceChildren(el('h2','Оригинальные файлы ('+data.Files.length+')'));const maps=data.AssetMappings||[],resolved=maps.reduce((n,m)=>n+m.Resolved,0),missing=maps.reduce((n,m)=>n+m.Missing.length,0);if(maps.length)reader.append(el('p','Исходные имена восстановлены: '+resolved+'.'+(missing?' В карте есть записи без найденных файлов: '+missing+'.':''),'hint'));reader.append(el('p','Имена восстановлены по метаданным выгрузки. Исходные байты и пути сохранены в Vault; соответствия и SHA-256 — в FILES_MANIFEST.json.','hint'));const q=el('input'),files=el('div');q.placeholder='Поиск по имени файла';q.setAttribute('aria-label','Поиск по имени файла');q.oninput=()=>{files.replaceChildren();data.Files.filter(f=>(f.Name+' '+f.SourcePath).toLowerCase().includes(q.value.toLowerCase())).forEach(f=>{const row=attachment(f);row.append(el('small',f.Name));files.append(row)})};reader.append(q,files);q.oninput();reader.scrollTop=0}
 document.getElementById('all-files').onclick=showFiles;document.getElementById('q').oninput=render;render();

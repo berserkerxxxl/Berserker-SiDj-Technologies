@@ -28,6 +28,9 @@ import (
 //go:embed ui.html
 var uiHTML string
 
+//go:embed favicon.ico
+var faviconICO []byte
+
 type Job struct {
 	ID, Action, Started, Finished, Error string
 	Running                              bool
@@ -124,6 +127,17 @@ func (a *App) fail(w http.ResponseWriter, status int, err error) {
 }
 func (a *App) handler() http.Handler {
 	mux := http.NewServeMux()
+	mux.HandleFunc("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet && r.Method != http.MethodHead {
+			http.Error(w, "Метод не поддерживается", http.StatusMethodNotAllowed)
+			return
+		}
+		w.Header().Set("Content-Type", "image/x-icon")
+		w.Header().Set("Content-Length", strconv.Itoa(len(faviconICO)))
+		if r.Method == http.MethodGet {
+			_, _ = w.Write(faviconICO)
+		}
+	})
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/" {
 			http.NotFound(w, r)

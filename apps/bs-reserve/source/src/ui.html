@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>B/S Reserve Alpha — Резервирование</title>
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>B/S Reserve Alpha — Резервирование</title><link rel="icon" type="image/x-icon" href="/favicon.ico">
 <style>
 :root{color-scheme:dark;--bg:#0b101a;--panel:#141c2b;--panel2:#182337;--line:#263248;--text:#e9eef6;--muted:#91a1b9;--mint:#72e0c3;--blue:#85b5ff;--amber:#f2c47a}
 *{box-sizing:border-box}[hidden]{display:none!important}body{margin:0;background:var(--bg);color:var(--text);font:14px/1.55 "Segoe UI",system-ui,sans-serif}button,input,select,textarea{font:inherit}button,a{touch-action:manipulation}button{cursor:pointer;border:1px solid var(--line);border-radius:10px;padding:10px 15px;background:#1b273b;color:var(--text);transition:.15s}button:hover{background:#253650;border-color:#45617e}button:disabled{opacity:.45;cursor:wait}.primary{background:var(--mint);border-color:var(--mint);color:#102820;font-weight:650}.primary:hover{background:#9cebd6}.quiet{background:transparent}.danger{color:#ffb5ad}.layout{min-height:100vh;display:grid;grid-template-columns:228px minmax(0,1fr)}
@@ -11,12 +11,13 @@ main{padding:29px 42px 50px;max-width:1500px;width:100%}.topbar{display:flex;jus
 .attachment{margin:10px 0;padding:12px;border:1px solid var(--line);border-radius:10px;overflow-wrap:anywhere}.attachment .row{margin-top:8px}.attachment img{display:block;max-width:100%;max-height:640px;object-fit:contain;margin-top:12px}.attachment small{display:block;color:var(--muted)}.attachment-list{margin:15px 0}.attachment-list summary{cursor:pointer;color:var(--mint)}#source-search{margin-bottom:12px}
 .file-action{min-height:44px;padding:11px 18px;border-radius:9px;font-weight:700;text-decoration:none;line-height:1.4;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px}.file-save{background:#72e0c3;color:#102820;border:1px solid #a5f2dc}.file-save:hover{background:#9cebd6;color:#102820;border-color:#c7fff0}.file-preview{background:#85b5ff;color:#0b172b;border:1px solid #b9d5ff}.file-preview:hover{background:#b2d0ff;color:#0b172b;border-color:#d6e6ff}.file-action:focus-visible{outline:3px solid #fff;outline-offset:3px}.file-action:disabled{opacity:.55;cursor:wait}
 .message.message-user{background:#172b46;border-left:3px solid #85b5ff;border-radius:10px;margin:12px 0;padding:15px 17px}.message.message-assistant{background:#16332f;border-left:3px solid #72e0c3;border-radius:10px;margin:12px 0;padding:15px 17px}.message-user .role{color:#b6d3ff;font-weight:700}.message-assistant .role{color:#a6f2dc;font-weight:700}.reader-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px}.reader-heading h2{margin:0}.file-link-help{font-size:12px;color:var(--muted);margin:8px 0 12px}.file-link-choice{min-width:0;flex:1}.file-link-choice strong,.file-link-choice small{display:block;overflow-wrap:anywhere}
+.chat-rich{white-space:pre-wrap;overflow-wrap:anywhere;font:14px/1.7 "Segoe UI",system-ui,sans-serif;margin:10px 0}.chat-link{color:#9ccaff;text-decoration:underline;text-underline-offset:3px}.chat-link:hover{color:#c8e3ff}.chat-missing-link{color:#e9bb83;text-decoration:underline dotted;cursor:help}
 </style></head>
 <body><div class="layout"><aside><div class="brand"><div class="monogram">B/S</div><div><strong>RESERVE</strong><small>Berserker &amp; SiDj Technologies</small></div></div>
 <nav><button class="nav active" data-page="overview"><span>◈</span>Обзор</button><button class="nav" data-page="archive"><span>▤</span>Архив</button><button class="nav" data-page="knowledge"><span>◇</span>Память</button><button class="nav" data-page="backup"><span>▣</span>Резервные копии</button><button class="nav" data-page="collect"><span>↙</span>Получить экспорт</button><button class="nav" data-page="journal"><span>≡</span>Журнал</button></nav>
-<div class="aside-bottom"><p><span class="dot"></span>Локальная программа</p><b>СОЗИДАЕМ · АВТОМАТИЗИРУЕМ · УПРОЩАЕМ</b><p id="version">Альфа 0.1.0-alpha.8<br>Билд 20261030.3</p><button class="quiet danger" id="exit">Завершить работу</button></div></aside>
+<div class="aside-bottom"><p><span class="dot"></span>Локальная программа</p><b>СОЗИДАЕМ · АВТОМАТИЗИРУЕМ · УПРОЩАЕМ</b><p id="version">Альфа 0.1.0-alpha.9<br>Билд 20261030.4</p><button class="quiet danger" id="exit">Завершить работу</button></div></aside>
 <main><header class="topbar"><div><div class="eyebrow">Проект «Резервирование»</div><h1 id="page-title">Управление архивом</h1></div><span class="pill"><span class="dot"></span>Данные остаются на твоём ПК</span></header>
-<div class="notice" id="alpha-notice"><strong>АЛЬФА-ВЕРСИЯ · 0.1.0-alpha.8</strong><br>Экспериментальный выпуск для тестирования. Начните с вымышленных примеров и копий файлов. Не используйте как единственную резервную копию. Проверка на пользовательских компьютерах Windows, macOS, Linux и реальных аккаунтах ChatGPT ещё не завершена. <a href="https://github.com/berserkerxxxl/Berserker-SiDj-Technologies/issues/new?title=B%2FS%20Reserve%200.1.0-alpha.8%3A%20" target="_blank" rel="noreferrer">Сообщить об ошибке ↗</a></div>
+<div class="notice" id="alpha-notice"><strong>АЛЬФА-ВЕРСИЯ · 0.1.0-alpha.9</strong><br>Экспериментальный выпуск для тестирования. Начните с вымышленных примеров и копий файлов. Не используйте как единственную резервную копию. Проверка на пользовательских компьютерах Windows, macOS, Linux и реальных аккаунтах ChatGPT ещё не завершена. <a href="https://github.com/berserkerxxxl/Berserker-SiDj-Technologies/issues/new?title=B%2FS%20Reserve%200.1.0-alpha.9%3A%20" target="_blank" rel="noreferrer">Сообщить об ошибке ↗</a></div>
 <div id="job"><span class="spinner"></span><span id="job-text">Выполняется операция…</span><div class="progress-line"></div></div>
 <section class="page active" id="overview">
 <div class="hero"><div><div class="eyebrow" style="color:#8bbdb6;margin-bottom:11px">Независимость начинается с копии</div><h2>Сохраняем нашу память.<br>И всё, что создали вместе.</h2><p>Переписки, инструкции и разработки — в твоём архиве, с версиями и возможностью восстановления.</p></div><div class="hero-actions"><button class="primary upload-button">+ Добавить файлы</button><button class="quiet" onclick="page('collect')">Как получить экспорт</button></div></div>
@@ -45,6 +46,41 @@ const titles={overview:'Управление архивом',archive:'Переп
 function page(id){document.querySelectorAll('.page').forEach(x=>x.classList.toggle('active',x.id===id));document.querySelectorAll('.nav').forEach(x=>x.classList.toggle('active',x.dataset.page===id));$('page-title').textContent=titles[id];if(id==='journal')loadLog()}
 document.querySelectorAll('.nav').forEach(x=>x.onclick=()=>page(x.dataset.page));
 function el(tag,text,cls){const n=document.createElement(tag);if(text!==undefined)n.textContent=text;if(cls)n.className=cls;return n}
+
+function renderArchiveText(value,files,onSaved){
+ const box=el('div','','chat-rich'),input=String(value??'');
+ const pattern=/\[([^\]\n]{1,300})\]\(((?:https?:\/\/|sandbox:)[^\s)]+)\)|<Link\s+url="(https?:\/\/[^"]+)"[^>]*>([^<]{1,300})<\/Link>|(https?:\/\/[^\s<>"']+)/g;
+ let start=0,match;
+ while((match=pattern.exec(input))!==null){
+  if(match.index>start)box.append(document.createTextNode(input.slice(start,match.index)));
+  const url=match[2]||match[3]||match[5],label=match[1]||match[4]||url;
+  const bare=!!match[5],clean=bare?url.replace(/[.,;:!?]+$/,''):url,tail=bare?url.slice(clean.length):'';
+  if(clean.startsWith('sandbox:')){
+   let filename=clean.split('/').pop();
+   try{filename=decodeURIComponent(filename)}catch(_){}
+   const candidates=(files||[]).filter(f=>(f.Name||'').replace(/\\/g,'/').split('/').pop()===filename);
+   if(candidates.length===1){
+    const link=el('a',label,'chat-link');link.href='#';link.title='Скачать сохранённый файл';
+    link.onclick=e=>{e.preventDefault();onSaved(candidates[0])};box.append(link);
+   }else{
+    const note=el('span',label+' [файл отсутствует в архиве]','chat-missing-link');
+    note.title='Ссылка ChatGPT ведёт на временный файл. В текущем архиве нет подтверждённого файла для скачивания.';
+    box.append(note);
+   }
+  }else{
+   try{
+    const parsed=new URL(clean);
+    if(parsed.protocol!=='https:'&&parsed.protocol!=='http:')throw Error('scheme');
+    const a=el('a',label,'chat-link');a.href=parsed.href;a.target='_blank';a.rel='noopener noreferrer';box.append(a);
+   }catch(_){box.append(document.createTextNode(match[0]))}
+  }
+  if(tail)box.append(document.createTextNode(tail));
+  start=pattern.lastIndex;
+ }
+ if(start<input.length)box.append(document.createTextNode(input.slice(start)));
+ return box;
+}
+
 function toast(text,error){$('toast').textContent=text;$('toast').style.borderColor=error?'#ad645a':'#45676e';$('toast').style.display='block';clearTimeout(toast.timer);toast.timer=setTimeout(()=>$('toast').style.display='none',error?18000:10000)}
 function date(s){if(!s)return 'Не выполнялось';const d=new Date(s);return isNaN(d)?s:d.toLocaleString('ru-RU',{timeZone:'Europe/Moscow',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})+' МСК'}
 function size(n){return n>1073741824?(n/1073741824).toFixed(2)+' ГиБ':n>1048576?(n/1048576).toFixed(1)+' МиБ':n>1024?Math.round(n/1024)+' КиБ':n+' Б'}
@@ -120,7 +156,7 @@ async function openChat(id,revision){
  const box=$('reader'),heading=el('div','','reader-heading'),link=el('button','Прикрепить сохранённый файл','file-action file-preview');link.onclick=()=>openFileLinks(id);heading.append(el('h2',d.Conversation.Title),link);box.replaceChildren(heading);const select=el('select');
  d.Conversation.Revisions.slice().reverse().forEach(r=>{const o=el('option',date(r.ImportedAt)+' · '+r.Hash.slice(0,8));o.value=r.Hash;o.selected=r.Hash===d.Revision;select.append(o)});
  select.onchange=()=>openChat(id,select.value);box.append(select,el('p','Все полученные узлы, включая доступные ветви. Вложения связаны по данным выгрузки или твоему выбору сохранённого файла.','hint'));
- const placed=new Set();d.Messages.forEach(m=>{const n=el('section','','message'+(m.Role==='user'?' message-user':m.Role==='assistant'?' message-assistant':''));n.append(el('div',({user:'Пользователь',assistant:'Ассистент',system:'Система',tool:'Инструмент',developer:'Инструкции'}[m.Role]||'Сообщение'),'role'),el('pre',m.Text),el('small','Узел '+m.ID));(m.Attachments||[]).forEach(f=>{placed.add(f.Path);n.append(attachment(f,generation))});box.append(n)});
+ const placed=new Set();d.Messages.forEach(m=>{const n=el('section','','message'+(m.Role==='user'?' message-user':m.Role==='assistant'?' message-assistant':''));n.append(el('div',({user:'Пользователь',assistant:'Ассистент',system:'Система',tool:'Инструмент',developer:'Инструкции'}[m.Role]||'Сообщение'),'role'),renderArchiveText(m.Text,d.Attachments||[],f=>download(assetURL(f),fileName(f.Name))),el('small','Узел '+m.ID));(m.Attachments||[]).forEach(f=>{placed.add(f.Path);n.append(attachment(f,generation))});box.append(n)});
  const remaining=(d.Attachments||[]).filter(f=>!placed.has(f.Path));if(remaining.length){const group=el('details','','attachment-list');group.open=true;group.append(el('summary','Другие вложения этого чата ('+remaining.length+')'));remaining.forEach(f=>group.append(attachment(f,generation)));box.append(group)}
  }catch(e){toast(clientError(e),true)}
 }
