@@ -78,12 +78,14 @@ def check_windows_icon(binary: Path) -> None:
     finally:
         kernel.FreeLibrary(module)
     assert shell.ExtractIconExW(str(binary), -1, None, None, 0) == 1
-    large, small = ctypes.c_void_p(), ctypes.c_void_p()
-    try:
-        assert shell.ExtractIconExW(str(binary), 0, ctypes.byref(large), ctypes.byref(small), 1) == 1
-        assert large.value and small.value
-    finally:
-        for icon in (large, small):
+    for size in ("large", "small"):
+        icon = ctypes.c_void_p()
+        try:
+            count = shell.ExtractIconExW(str(binary), 0,
+                                         ctypes.byref(icon) if size == "large" else None,
+                                         ctypes.byref(icon) if size == "small" else None, 1)
+            assert count == 1 and icon.value, (size, count, icon.value, ctypes.get_last_error())
+        finally:
             if icon.value:
                 user.DestroyIcon(icon)
     print("PASS Windows shell icon: one group, ten original frames, large and small icons load", flush=True)
