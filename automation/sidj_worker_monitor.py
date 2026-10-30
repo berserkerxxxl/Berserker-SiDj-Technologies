@@ -148,15 +148,15 @@ def check(now=None, observed=None, notify=send):
         changed = advance(track, value, now)
         if changed is not None:
             messages.append(MESSAGES[key][changed])
-    # Save before sending so a retry doesn't create an alert storm.
-    # Failed delivery is reported in GitHub Actions; do not claim delivery.
-    STATE.write_text(json.dumps(state, separators=(',', ':')), encoding='utf-8')
+    # Commit state only after Telegram confirms delivery. A failed send can
+    # be retried on the next run; a lost response may rarely duplicate a notice.
     msk = datetime.fromtimestamp(now, MSK).strftime('%d.%m.%Y %H:%M МСК')
     for message in messages:
         try:
             notify(token, chat, '🤖 B/S tech | Мониторинг\n' + message + '\n🕒 ' + msk)
         except (HTTPError, URLError, TimeoutError, ValueError, UnicodeError, OSError) as exc:
             raise RuntimeError('Не удалось доставить уведомление о состоянии. Проверь журнал GitHub Actions.') from None
+    STATE.write_text(json.dumps(state, separators=(',', ':')), encoding='utf-8')
     # Fixed, nonsensitive diagnostic only (no response bodies or URLs with tokens).
     print(f'Проверено {msk}: bot={bot}; check={check_status}; analytics={analytics or "not-configured"}; notifications={len(messages)}')
 
