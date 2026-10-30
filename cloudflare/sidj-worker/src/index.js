@@ -57,9 +57,20 @@ async function cachedJSON(url, ttl, limit = 256 * 1024, headers = {}) {
   catch (error) { if (jsonCache.get(url) === record) jsonCache.delete(url); throw error; }
 }
 
+// Validation is pure; the cached JSON object is unchanged during its 60s TTL.
+// Avoid revalidating the same catalog on every command; retry invalid updates.
+let remoteCatalog, remoteValidated, fallbackValidated;
 async function catalog() {
-  try { return validateCatalog(await cachedJSON(RAW + "main/automation/sidj_projects.json", 60, 64 * 1024)); }
-  catch { return validateCatalog(snapshot); }
+  try {
+    const data = await cachedJSON(RAW + "main/automation/sidj_projects.json", 60, 64 * 1024);
+    if (data !== remoteCatalog) {
+      remoteValidated = validateCatalog(data);
+      remoteCatalog = data;
+    }
+    return remoteValidated;
+  } catch {
+    return fallbackValidated ||= validateCatalog(snapshot);
+  }
 }
 
 async function showProjects(env) {
