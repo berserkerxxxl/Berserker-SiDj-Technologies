@@ -17,6 +17,7 @@ from zoneinfo import ZoneInfo
 REPOSITORY = "berserkerxxxl/Berserker-SiDj-Technologies"
 AI_WORKFLOW = "B/S tech - free AI improvement proposals"
 AI_BRANCH_PREFIX = "ai/sidj-free-"
+AI_PROJECT = "B/S SiDj — Telegram-бот (Cloudflare Worker)"
 API_ROOT = "https://api.github.com/repos/" + REPOSITORY
 
 
@@ -101,6 +102,7 @@ def build_message(pr: dict | None, event_name: str, run: dict | None) -> tuple[s
         model, summary, reason = extract_details(pr.get("body"))
         content = (
             "🤖 СиДжи | B/S tech\n"
+            + "📦 Программа: " + AI_PROJECT + "\n"
             + f"💡 ИИ нашёл улучшение № {pr['number']}\n\n"
             + "Что предложено: " + (summary or "Изменение кода Telegram-бота") + "\n"
             + "Зачем: " + (reason or "Пояснение доступно в GitHub") + "\n"
@@ -111,7 +113,7 @@ def build_message(pr: dict | None, event_name: str, run: dict | None) -> tuple[s
         )
         return content[:2300], pr["html_url"], "🔍 Посмотреть предложение"
     if event_name == "workflow_dispatch":
-        return ("🤖 СиДжи | B/S tech\n✅ Канал уведомлений об ИИ работает.\n"
+        return ("🤖 СиДжи | B/S tech\n📦 Программа: " + AI_PROJECT + "\n✅ Канал уведомлений об ИИ работает.\n"
                 "Новых открытых предложений ИИ сейчас нет.\n🕒 Москва: " + now,
                 "https://github.com/" + REPOSITORY + "/pulls", "📋 Все предложения")
     run = run or {}
@@ -124,7 +126,7 @@ def build_message(pr: dict | None, event_name: str, run: dict | None) -> tuple[s
         status = "⚪ ИИ-аудит отменён."
     else:
         status = "ℹ️ ИИ-аудит завершён без нового предложения."
-    return ("🤖 СиДжи | B/S tech\n" + status + "\n🕒 Москва: " + now,
+    return ("🤖 СиДжи | B/S tech\n📦 Программа: " + AI_PROJECT + "\n" + status + "\n🕒 Москва: " + now,
             run_url(run), "📋 Журнал аудита")
 
 
