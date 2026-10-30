@@ -38,7 +38,7 @@ jobs:
       - name: Verify polling fallback and activation race
         run: python3 -m unittest discover -s automation -p 'test_sidj_telegram.py' -v
       - name: Verify manual Cloudflare operations without credentials
-        run: python3 -m unittest discover -s automation -p 'test_sidj_cloudflare.py' -v
+        run: python3 -m unittest discover -s automation -p 'test_sidj_cloudflare*.py' -v
       - name: Verify committed download checksums
         run: |
           python3 - <<'PY'
