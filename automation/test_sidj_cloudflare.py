@@ -71,6 +71,17 @@ class CloudflareOperationsTests(unittest.TestCase):
             self.assertNotIn(configuration()['SIDJ_ADMIN_TOKEN'], str(caught.exception))
             self.assertEqual(ops.request('https://worker.example/', expected_status=403), '')
 
+    def test_http_client_identifies_project_without_impersonating_a_browser(self):
+        response = Mock(status=200)
+        response.read.return_value = b'ready'
+        with patch.object(ops.HTTP, 'open', return_value=contextlib.nullcontext(response)) as network:
+            self.assertEqual(ops.request('https://bs-tech-sidj.example.workers.dev/'), 'ready')
+        agent = network.call_args.args[0].get_header('User-agent')
+        self.assertTrue(agent.startswith('B/S-tech-SiDj-operations/'))
+        self.assertIn('github.com/berserkerxxxl/Berserker-SiDj-Technologies', agent)
+        for secret in configuration().values():
+            self.assertNotIn(secret, agent)
+
     def test_secret_bulk_uses_stdin_and_failure_output_is_not_printed(self):
         values = ops.settings(configuration())
         output = io.StringIO()
@@ -92,9 +103,9 @@ class CloudflareOperationsTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, 'Cloudflare API.*HTTP 403.*10000') as caught:
                 ops.request('https://api.cloudflare.com/client/v4/private')
         self.assertNotIn(secret, str(caught.exception))
-        error = HTTPError('https://bs-tech-sidj.example.workers.dev/', 403, secret, {}, None)
+        error = HTTPError('https://bs-tech-sidj.example.workers.dev/', 403, secret, {}, io.BytesIO(b'error code: 1010\n'))
         with patch.object(ops.HTTP, 'open', side_effect=error):
-            with self.assertRaisesRegex(RuntimeError, 'Worker.*HTTP 403'):
+            with self.assertRaisesRegex(RuntimeError, 'Worker.*HTTP 403.*1010'):
                 ops.request('https://bs-tech-sidj.example.workers.dev/')
 
     def test_deploy_only_does_not_activate_webhook(self):

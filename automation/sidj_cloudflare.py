@@ -14,6 +14,8 @@ from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 ROOT = Path(__file__).resolve().parent.parent
 WORKER = ROOT / 'cloudflare/sidj-worker'
+USER_AGENT = ('B/S-tech-SiDj-operations/1.0 '
+              '(+https://github.com/berserkerxxxl/Berserker-SiDj-Technologies)')
 
 
 class NoRedirect(HTTPRedirectHandler):
@@ -59,7 +61,8 @@ def settings(environ):
 
 def request(url, *, headers=None, payload=None, expected_status=200):
     data = None if payload is None else json.dumps(payload).encode('utf-8')
-    hdr = {'Content-Type': 'application/json', **(headers or {})}
+    # Identify this automation transparently, with its public source URL.
+    hdr = {'Content-Type': 'application/json', 'User-Agent': USER_AGENT, **(headers or {})}
     req = Request(url, headers=hdr, data=data, method='GET' if data is None else 'POST')
     try:
         with HTTP.open(req, timeout=30) as res:
@@ -86,6 +89,12 @@ def request(url, *, headers=None, payload=None, expected_status=200):
                          if isinstance(item, dict) and type(item.get('code')) is int
                          and 0 <= item['code'] <= 999999]
             except (OSError, ValueError, AttributeError, TypeError):
+                pass
+        elif host.endswith('.workers.dev'):
+            try:
+                raw = exc.read(16 * 1024 + 1).decode('utf-8', 'replace')
+                codes = re.findall(r'\berror code:\s*(\d{3,6})\b', raw, flags=re.IGNORECASE)[:8]
+            except (OSError, AttributeError):
                 pass
         detail = ' (коды Cloudflare: ' + ', '.join(codes) + ')' if codes else ''
         raise RuntimeError(service + ' отклонил операцию: HTTP ' + str(exc.code) + detail) from None
