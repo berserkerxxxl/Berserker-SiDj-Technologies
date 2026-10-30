@@ -72,9 +72,16 @@ async function showProject(env, id) {
   const p = (await catalog()).projects.find(p => p.id === id);
   if (!p) return showProjects(env);
   const rows = p.downloads.map(d => [{ text: "📥 " + d.label, callback_data: "d:" + p.id + ":" + d.id }]);
+  if (p.id === "sidj") {
+    // Public source only: never expose or link to Cloudflare, Telegram or OpenRouter secrets.
+    rows.push([{ text: "💻 Исходники Cloudflare", url:
+      "https://github.com/" + REPO + "/tree/main/cloudflare/sidj-worker" }]);
+    rows.push([{ text: "🤖 Исходники ИИ-разработчика", url:
+      "https://github.com/" + REPO + "/blob/main/automation/sidj_ai_agent.py" }]);
+  }
   rows.push([{ text: "◀️ Все проекты", callback_data: "projects" }]);
   return say(env, "📦 " + p.name + " · " + p.version + "\n\n" + p.description + "\n\nℹ️ " + p.notes +
-    "\n\n🌐 " + p.page + "\n\nВыбери файл:", rows);
+    "\n\n🌐 " + p.page + (p.downloads.length ? "\n\nВыбери файл:" : "\n\nИсходники и описание по ссылкам:"), rows);
 }
 
 async function linkToFile(env, p, entry, url, explanation) {
