@@ -106,7 +106,7 @@ const status=c.AutoLastOutcome==='error'?'Последний запуск зав
 health.textContent=(c.AutoBackup?'Автокопирование включено. ':'Автокопирование выключено. ')+scheduler+'. Последняя попытка: '+last+'. '+status;
 health.className='notice'+(c.AutoLastOutcome==='error'?'':' blue');
 $('test-auto').disabled=!state.Windows||!c.AutoBackup;
-$('schedule-remove').disabled=!c.ScheduleEnabled;
+$('schedule-remove').disabled=!state.Windows;
 if(!migrationPathLoaded){$('migration-dir').value=c.MigrationDirectory||'';$('schedule-time').value=c.ScheduleTime||'19:00';$('schedule-logon').checked=c.ScheduleAtLogon!==false;migrationPathLoaded=true}
 document.querySelectorAll('[data-folder-input]').forEach(b=>{b.disabled=pickingFolder||!state.FolderPicker;b.title=state.FolderPicker?'Открыть системный диалог выбора папки':'В этой среде путь вводится вручную'});
 $('data-path').textContent=state.Root;$('inbox-path').textContent=state.Inbox;$('version').textContent='Версия '+state.Version+' · билд '+state.Build;
