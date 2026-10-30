@@ -64,6 +64,43 @@ class PortfolioTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 ai.parse_analysis(payload)
 
+    def test_json_fences_and_short_explanations(self):
+        object_text = json.dumps({
+            "finding": "Возможна лишняя очистка кэша",
+            "recommendation": "Проверить выборочное удаление",
+            "severity": "низкий"
+        }, ensure_ascii=False)
+        examples = [
+            object_text,
+            "```json\n" + object_text + "\n```",
+            "```\n" + object_text + "\n```",
+            "Краткий отчёт:\n" + object_text,
+            object_text + "\nПроверяйте предложение вручную.",
+        ]
+        for response in examples:
+            with self.subTest(response=response[:30]):
+                analysis = ai.parse_analysis(response)
+                self.assertEqual(analysis["severity"], "низкий")
+
+    def test_reject_unfinished_or_multiple_json_objects(self):
+        item = json.dumps({"finding": "a", "recommendation": "b", "severity": "низкий"})
+        for candidate in ('{"finding":', item + "\n" + item, "x" * 250 + item):
+            with self.subTest(candidate=candidate[:30]):
+                with self.assertRaises(ValueError):
+                    ai.parse_analysis(candidate)
+
+    def test_finish_reason_length_gives_safe_diagnostic(self):
+        class Truncated:
+            def open(self, req, timeout):
+                response = {"choices": [{
+                    "finish_reason": "length",
+                    "message": {"content": '{"finding":"too long",'}
+                }]}
+                return io.BytesIO(json.dumps(response).encode("utf-8"))
+        with patch.object(ai, "build_opener", return_value=Truncated()):
+            with self.assertRaisesRegex(ValueError, "truncated at token limit"):
+                ai.free_review("public source", "path.js", "B/S", "fake-key")
+
     def test_one_request_and_free_only_fallback(self):
         requests = []
 
@@ -88,6 +125,7 @@ class PortfolioTests(unittest.TestCase):
         self.assertTrue(all(m.endswith(":free") for m in requests[0]["models"]))
         self.assertEqual(requests[0]["route"], "fallback")
         self.assertEqual(requests[0]["response_format"], {"type": "json_object"})
+        self.assertEqual(requests[0]["max_tokens"], 3600)
         self.assertNotIn("api_key", requests[0])
         self.assertNotIn("authorization", requests[0])
         self.assertNotIn("secret", requests[0])
