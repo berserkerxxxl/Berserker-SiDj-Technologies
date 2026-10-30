@@ -34,6 +34,7 @@ jobs:
         run: python3 -m unittest discover -s automation -p 'test_sidj_portfolio_audit.py' -v
 
       - name: Read-only free AI review (one request, no code modifications)
+        id: review
         continue-on-error: true
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
@@ -47,3 +48,9 @@ jobs:
           SIDJ_BOT_TOKEN: ${{ secrets.SIDJ_TELEGRAM_BOT_TOKEN }}
           SIDJ_CHAT_ID: ${{ secrets.SIDJ_TELEGRAM_CHAT_ID }}
         run: python3 automation/sidj_portfolio_audit.py notify ${{ matrix.project }}
+
+      - name: Mark unavailable AI analysis as failed after Telegram notification
+        if: steps.review.outcome == 'failure'
+        run: |
+          echo "::error::Бесплатный ИИ не выдал проверенный отчёт. Сообщение отправлено в Telegram."
+          exit 1
