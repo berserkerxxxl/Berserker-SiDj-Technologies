@@ -5,7 +5,7 @@ from pathlib import Path
 import unittest
 
 sys.path.insert(0, str(Path(__file__).parent))
-from sidj_ai_agent import TARGET, apply_proposal, parse_reply
+from sidj_ai_agent import MODEL, TARGET, apply_proposal, parse_reply
 
 
 class AgentTests(unittest.TestCase):
@@ -45,8 +45,19 @@ class AgentTests(unittest.TestCase):
 
     def test_json_only(self):
         self.assertEqual(parse_reply('{"summary":"ok"}')["summary"], "ok")
-        with self.assertRaises(ValueError):
+        self.assertEqual(parse_reply('```json\n{"summary":"ok"}\n```')["summary"], "ok")
+        with self.assertRaisesRegex(ValueError, "invalid JSON"):
             parse_reply("not json")
+
+    def test_empty_reply_has_safe_diagnostic(self):
+        with self.assertRaisesRegex(ValueError, "empty text"):
+            parse_reply("")
+        with self.assertRaisesRegex(ValueError, "empty text"):
+            parse_reply("  ")
+
+    def test_only_pinned_free_coder(self):
+        self.assertEqual(MODEL, "qwen/qwen3-coder:free")
+        self.assertTrue(MODEL.endswith(":free"))
 
 
 if __name__ == "__main__":
