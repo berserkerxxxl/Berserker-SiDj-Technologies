@@ -30,7 +30,8 @@ SOURCE = PROJECT / "source"
 CONFIG = json.loads((PROJECT / "release/config.json").read_text(encoding="utf-8"))
 TARGETS = {entry["target"]: entry for entry in CONFIG["targets"]}
 EPOCH = 1793368800  # 2026-10-30 14:00 UTC; fixed archive metadata.
-ROOT_NAME = "BS_Reserve_Alpha"
+ROOT_NAME = "BS_Reserve"
+BASELINE_ROOT_NAME = "BS_Reserve_Alpha"
 
 
 def digest(data: bytes) -> str:
@@ -91,7 +92,7 @@ def seed_bundle(bundle: Path) -> None:
     with zipfile.ZipFile(io.BytesIO(data)) as archive:
         for item in archive.infolist():
             p = PurePosixPath(item.filename)
-            if p.is_absolute() or ".." in p.parts or not p.parts or p.parts[0] != ROOT_NAME:
+            if p.is_absolute() or ".." in p.parts or not p.parts or p.parts[0] != BASELINE_ROOT_NAME:
                 raise ValueError(f"invalid baseline path {p}")
             relative = PurePosixPath(*p.parts[1:])
             if item.is_dir() or not relative.parts:
@@ -137,10 +138,10 @@ def stage_bundle(target: str, work: Path, cache: Path) -> tuple[Path, Path, Path
     if is_mac:
         shutil.copytree(bundle / "examples", runtime_dir / "examples")
         plist = {
-            "CFBundleExecutable": "B_S_Reserve", "CFBundleIdentifier": "tech.berserkersidj.reserve.alpha",
-            "CFBundleDisplayName": "B/S Reserve Alpha", "CFBundleName": "B/S Reserve Alpha",
+            "CFBundleExecutable": "B_S_Reserve", "CFBundleIdentifier": "tech.berserkersidj.reserve",
+            "CFBundleDisplayName": "B/S Reserve", "CFBundleName": "B/S Reserve Alpha",
             "CFBundlePackageType": "APPL", "CFBundleVersion": CONFIG["build"],
-            "CFBundleShortVersionString": "0.1.0", "LSMinimumSystemVersion": "13.0",
+            "CFBundleShortVersionString": CONFIG["version"], "LSMinimumSystemVersion": "13.0",
             "NSHighResolutionCapable": True, "LSUIElement": True,
         }
         (bundle / "B_S_Reserve.app/Contents/Info.plist").write_bytes(plistlib.dumps(plist, sort_keys=True))
