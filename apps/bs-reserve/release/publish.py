@@ -36,6 +36,7 @@ def main():
     start = content.index('<article class="mini-product reserve-alpha"')
     end = content.index("</article>", start) + len("</article>")
     card = content[start:end]
+    card = card.replace('<span class="alpha-label">АЛЬФА</span>', '<span class="alpha-label">БЕТА</span>')
     card = re.sub(r'<div class="mini-tag">.*?</div>', '<div class="mini-tag">Windows · macOS · Linux · 0.2.0-beta.1</div>', card, count=1)
     card = re.sub(r'<a class="mini-download"[^>]*>.*?</a>', '<a class="mini-download" href="apps/bs-reserve/#downloads">↓ Скачать для своей ОС</a>', card, count=1)
     card = card.replace("Работа на пользовательских ПК Windows 11", "Работа на пользовательских компьютерах")
@@ -53,11 +54,11 @@ def main():
 
     downloads = REPO / "downloads/README.md"
     text = downloads.read_text()
-    start = text.index("# B/S Reserve — BETA")
+    start = text.index("# B/S Reserve — ALPHA")
     section = "# B/S Reserve — BETA\n\nВерсия 0.2.0-beta.1, билд 20261030.5.\n\n| Платформа | Архив | SHA-256 |\n| --- | --- | --- |\n"
     for entry in manifest["targets"]:
         section += f"| {entry['label']} | [{entry['name']}]({entry['name']}) | `{entry['sha256']}` |\n"
-    section += "\n[Описание и ограничения](../apps/bs-reserve/README_RU.md) · [Тестирование](../apps/bs-reserve/ALPHA_FEEDBACK_RU.md).\n\nЭкспериментальная альфа. Начните с вымышленных примеров и копий файлов; не используйте как единственную резервную копию. Рабочая Data не шифруется приложением; шифруются репозитории restic. macOS: без Developer ID/нотариализации. macOS/Linux: ручной пароль и ручное шифрованное копирование; встроенное расписание и запоминание ключа пока только Windows.\n\nПредыдущая Windows-альфа 0.1.0-alpha.1, билд 20261028.2 остаётся доступна в downloads; новые пакеты её не заменяют.\n"
+    section += "\n[Описание и ограничения](../apps/bs-reserve/README_RU.md) · [Тестирование](../apps/bs-reserve/ALPHA_FEEDBACK_RU.md).\n\nЭкспериментальная бета. Начните с вымышленных примеров и копий файлов; не используйте как единственную резервную копию. Рабочая Data не шифруется приложением; шифруются репозитории restic. macOS: без Developer ID/нотариализации. macOS/Linux: ручной пароль и ручное шифрованное копирование; встроенное расписание и запоминание ключа пока только Windows.\n\nПредыдущая Windows-альфа 0.1.0-alpha.1, билд 20261028.2 остаётся доступна в downloads; новые пакеты её не заменяют.\n"
     downloads.write_text(text[:start] + section)
     print("Rendered download page and documentation from verified release manifest")
 
