@@ -82,7 +82,7 @@ def parse_analysis(raw: str) -> dict:
         raise ValueError("Empty AI analysis")
     text = raw.strip()
     # Some free routes return a Markdown JSON code block despite json_object mode.
-    fenced = re.fullmatch(r"```(?:json)?[ \\t]*\\r?\\n(.*?)\\r?\\n```",
+    fenced = re.fullmatch(r"```(?:json)?[ \t]*\r?\n(.*?)\r?\n```",
                           text, flags=re.IGNORECASE | re.DOTALL)
     if fenced:
         text = fenced.group(1).strip()
