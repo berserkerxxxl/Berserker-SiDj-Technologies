@@ -55,7 +55,7 @@ func lockData(root string) (func(), error) {
 	p, _ := syscall.UTF16PtrFromString(filepath.Join(root, "reserve.lock"))
 	h, err := syscall.CreateFile(p, syscall.GENERIC_READ|syscall.GENERIC_WRITE, 0, nil, syscall.OPEN_ALWAYS, syscall.FILE_ATTRIBUTE_NORMAL, 0)
 	if err != nil {
-		return nil, errors.New("B/S Reserve уже запущен или данные заняты")
+		return nil, errors.New("Программа B/S Reserve уже запущена или данные заняты")
 	}
 	return func() { syscall.CloseHandle(h) }, nil
 }

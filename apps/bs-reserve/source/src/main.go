@@ -56,6 +56,9 @@ func randomID() string {
 	return hex.EncodeToString(b)
 }
 func (a *App) log(action, status string, result any) {
+	if a.store == nil {
+		return
+	}
 	a.logMu.Lock()
 	defer a.logMu.Unlock()
 	f, err := os.OpenFile(filepath.Join(a.store.Root, "logs", "operations.jsonl"), os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0600)
@@ -91,7 +94,7 @@ func (a *App) startJob(action string, work func() (any, error)) error {
 		message := ""
 		if err != nil {
 			status = "error"
-			message = err.Error()
+			message = userError(err)
 		}
 		a.mu.Lock()
 		a.job.Running = false
@@ -100,7 +103,7 @@ func (a *App) startJob(action string, work func() (any, error)) error {
 		a.job.Error = message
 		a.mu.Unlock()
 		if err != nil {
-			a.log(action, status, message)
+			a.log(action, status, recordError(err))
 		} else {
 			a.log(action, status, result)
 		}
@@ -111,9 +114,11 @@ func respond(w http.ResponseWriter, v any) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	_ = json.NewEncoder(w).Encode(v)
 }
-func fail(w http.ResponseWriter, status int, err error) {
+func (a *App) fail(w http.ResponseWriter, status int, err error) {
+	a.log("request", "error", recordError(err))
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(status)
-	respond(w, map[string]any{"Error": err.Error()})
+	respond(w, map[string]any{"Error": userError(err)})
 }
 func (a *App) handler() http.Handler {
 	mux := http.NewServeMux()
@@ -143,7 +148,7 @@ func (a *App) handler() http.Handler {
 		if len(lines) > 150 {
 			lines = lines[len(lines)-150:]
 		}
-		respond(w, map[string]any{"Lines": lines})
+		respond(w, map[string]any{"Lines": logLinesForUI(lines)})
 	})
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "no-store")
@@ -153,24 +158,24 @@ func (a *App) handler() http.Handler {
 		if r.Host != "" {
 			host, _, err := net.SplitHostPort(r.Host)
 			if err != nil || host != "127.0.0.1" {
-				fail(w, 403, errors.New("неразрешённый адрес сервера"))
+				a.fail(w, 403, errors.New("неразрешённый адрес сервера"))
 				return
 			}
 		}
 		if strings.HasPrefix(r.URL.Path, "/api/") {
 			if r.Header.Get("X-BS-Token") != a.token {
-				fail(w, 403, errors.New("нет доступа к локальному сеансу"))
+				a.fail(w, 403, errors.New("нет доступа к локальному сеансу"))
 				return
 			}
 			if origin := r.Header.Get("Origin"); origin != "" {
 				u, err := url.Parse(origin)
 				if err != nil || u.Scheme != "http" || u.Host != r.Host {
-					fail(w, 403, errors.New("запрос с другого сайта отклонён"))
+					a.fail(w, 403, errors.New("запрос с другого сайта отклонён"))
 					return
 				}
 			}
 			if site := r.Header.Get("Sec-Fetch-Site"); site == "cross-site" {
-				fail(w, 403, errors.New("межсайтовый запрос отклонён"))
+				a.fail(w, 403, errors.New("межсайтовый запрос отклонён"))
 				return
 			}
 		}
@@ -200,24 +205,24 @@ func (a *App) state(w http.ResponseWriter, r *http.Request) {
 }
 func (a *App) upload(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
-		fail(w, 405, errors.New("нужен POST"))
+		a.fail(w, 405, errors.New("нужен POST"))
 		return
 	}
 	r.Body = http.MaxBytesReader(w, r.Body, maxSource+(2<<20))
 	reader, err := r.MultipartReader()
 	if err != nil {
-		fail(w, 400, err)
+		a.fail(w, 400, err)
 		return
 	}
 	part, err := reader.NextPart()
 	if err != nil || part.FileName() == "" {
-		fail(w, 400, errors.New("не выбран файл"))
+		a.fail(w, 400, errors.New("не выбран файл"))
 		return
 	}
 	name := portableName(part.FileName())
 	temp, err := os.CreateTemp(filepath.Join(a.store.Root, "Inbox"), ".upload-*")
 	if err != nil {
-		fail(w, 500, err)
+		a.fail(w, 500, err)
 		return
 	}
 	tmp := temp.Name()
@@ -234,12 +239,12 @@ func (a *App) upload(w http.ResponseWriter, r *http.Request) {
 		err = ce
 	}
 	if err != nil {
-		fail(w, 400, err)
+		a.fail(w, 400, err)
 		return
 	}
 	dest := filepath.Join(a.store.Root, "Inbox", randomID()[:10]+"_"+name)
 	if err = os.Rename(tmp, dest); err != nil {
-		fail(w, 500, err)
+		a.fail(w, 500, err)
 		return
 	}
 	err = a.startJob("import", func() (any, error) {
@@ -265,7 +270,7 @@ type ActionRequest struct {
 
 func (a *App) action(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
-		fail(w, 405, errors.New("нужен POST"))
+		a.fail(w, 405, errors.New("нужен POST"))
 		return
 	}
 	r.Body = http.MaxBytesReader(w, r.Body, 5<<20)
@@ -273,7 +278,7 @@ func (a *App) action(w http.ResponseWriter, r *http.Request) {
 	dec := json.NewDecoder(r.Body)
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(&req); err != nil {
-		fail(w, 400, err)
+		a.fail(w, 400, err)
 		return
 	}
 	work := func() (any, error) {
@@ -309,7 +314,8 @@ func (a *App) action(w http.ResponseWriter, r *http.Request) {
 			a.migrationPaths[item["Name"].(string)] = item["Path"].(string)
 			a.mu.Unlock()
 			if err = a.updateConfig(func(c *Config) { c.MigrationDirectory = strings.TrimSpace(req.Target) }); err != nil {
-				item["Warning"] = "Пакет создан, но папку вывода не удалось запомнить: " + err.Error()
+				item["Warning"] = "Пакет создан, но папку вывода не удалось запомнить. " + userError(err)
+				a.log("migration", "warning", recordError(err))
 			}
 			return item, nil
 		case "demo":
@@ -453,7 +459,7 @@ func (a *App) action(w http.ResponseWriter, r *http.Request) {
 		return nil, nil
 	}
 	if err := a.startJob(req.Action, work); err != nil {
-		fail(w, 409, err)
+		a.fail(w, 409, err)
 		return
 	}
 	respond(w, map[string]any{"Started": true})
@@ -464,7 +470,7 @@ func (a *App) conversation(w http.ResponseWriter, r *http.Request) {
 	defer a.store.mu.RUnlock()
 	c, ok := a.store.Cat.Conversations[id]
 	if !ok {
-		fail(w, 404, errors.New("разговор не найден"))
+		a.fail(w, 404, errors.New("разговор не найден"))
 		return
 	}
 	h := r.URL.Query().Get("revision")
@@ -475,12 +481,12 @@ func (a *App) conversation(w http.ResponseWriter, r *http.Request) {
 		if rev.Hash == h {
 			b, err := os.ReadFile(filepath.Join(a.store.Vault, filepath.FromSlash(rev.JSON)))
 			if err != nil {
-				fail(w, 500, err)
+				a.fail(w, 500, err)
 				return
 			}
 			var obj map[string]any
 			if json.Unmarshal(b, &obj) != nil {
-				fail(w, 500, errors.New("JSON не прочитан"))
+				a.fail(w, 500, errors.New("JSON не прочитан"))
 				return
 			}
 			msgs, attachments := messagesWithAssets(obj, c.ID, a.store.indexAssets())
@@ -488,13 +494,13 @@ func (a *App) conversation(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	fail(w, 404, errors.New("версия не найдена"))
+	a.fail(w, 404, errors.New("версия не найдена"))
 }
 
 func (a *App) search(w http.ResponseWriter, r *http.Request) {
 	q := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("q")))
 	if len(q) < 2 || len(q) > 1000 {
-		fail(w, 400, errors.New("запрос должен содержать от 2 до 1000 байт"))
+		a.fail(w, 400, errors.New("запрос должен содержать от 2 до 1000 байт"))
 		return
 	}
 	a.store.mu.RLock()
@@ -538,11 +544,15 @@ func (a *App) source(w http.ResponseWriter, r *http.Request) {
 	defer a.store.mu.RUnlock()
 	s, ok := a.store.Cat.Sources[r.URL.Query().Get("id")]
 	if !ok {
-		fail(w, 404, errors.New("источник не найден"))
+		a.fail(w, 404, errors.New("источник не найден"))
 		return
 	}
 	entries, report := a.store.namedEntries(s)
 	s.Entries = entries
+	s.Warnings = append([]string(nil), s.Warnings...)
+	for i, warning := range s.Warnings {
+		s.Warnings[i] = userError(errors.New(warning))
+	}
 	respond(w, struct {
 		Source
 		AssetNames AssetNameReport
@@ -551,14 +561,14 @@ func (a *App) source(w http.ResponseWriter, r *http.Request) {
 func (a *App) file(w http.ResponseWriter, r *http.Request) {
 	index, err := strconv.Atoi(r.URL.Query().Get("index"))
 	if err != nil {
-		fail(w, 400, err)
+		a.fail(w, 400, err)
 		return
 	}
 	a.store.mu.RLock()
 	s, ok := a.store.Cat.Sources[r.URL.Query().Get("source")]
 	a.store.mu.RUnlock()
 	if !ok || index < 0 || index >= len(s.Entries) {
-		fail(w, 404, errors.New("файл не найден"))
+		a.fail(w, 404, errors.New("файл не найден"))
 		return
 	}
 	entries, _ := a.store.namedEntries(s)
@@ -571,7 +581,7 @@ func pathBase(p string) string { return filepath.Base(strings.ReplaceAll(p, "\\"
 func (a *App) download(w http.ResponseWriter, r *http.Request) {
 	name := r.URL.Query().Get("name")
 	if name != filepath.Base(name) || !strings.HasPrefix(name, "BS_Reserve_Migration_") || !strings.HasSuffix(name, ".zip") {
-		fail(w, 400, errors.New("неверное имя пакета"))
+		a.fail(w, 400, errors.New("неверное имя пакета"))
 		return
 	}
 	a.mu.Lock()
@@ -808,28 +818,28 @@ func defaultDataDir(exe string) (string, error) {
 func main() {
 	exe, err := os.Executable()
 	if err != nil {
-		showError(err.Error())
+		showError(userError(err))
 		os.Exit(1)
 	}
 	defaultRoot, err := defaultDataDir(exe)
 	if err != nil {
-		showError(err.Error())
+		showError(userError(err))
 		os.Exit(1)
 	}
-	data := flag.String("data", defaultRoot, "working data directory")
-	once := flag.Bool("run-once", false, "import Inbox and run configured backup")
-	headless := flag.Bool("no-browser", false, "do not launch browser")
-	listen := flag.String("listen", "127.0.0.1:0", "loopback address")
+	data := flag.String("data", defaultRoot, "папка рабочих данных")
+	once := flag.Bool("run-once", false, "обработать Inbox и создать настроенную резервную копию")
+	headless := flag.Bool("no-browser", false, "запустить без открытия браузера")
+	listen := flag.String("listen", "127.0.0.1:0", "локальный адрес интерфейса")
 	flag.Parse()
 	if err = os.MkdirAll(*data, 0700); err != nil {
-		showError(err.Error())
+		showError(userError(err))
 		os.Exit(1)
 	}
 	unlock, err := lockData(*data)
 	if err != nil {
 		if *once {
 			if e := forwardRunOnce(*data); e != nil {
-				fmt.Fprintln(os.Stderr, e)
+				fmt.Fprintln(os.Stderr, userError(e))
 				os.Exit(1)
 			}
 			return
@@ -840,13 +850,13 @@ func main() {
 				return
 			}
 		}
-		showError(err.Error())
+		showError(userError(err))
 		os.Exit(1)
 	}
 	defer unlock()
 	s, err := openStore(*data)
 	if err != nil {
-		showError(err.Error())
+		showError(userError(err))
 		os.Exit(1)
 	}
 	binary := filepath.Join(filepath.Dir(exe), "bin", "restic.exe")
@@ -856,8 +866,8 @@ func main() {
 	a := &App{store: s, engine: &Engine{Binary: binary, ExpectedHash: ResticHash}, exe: exe, token: randomID(), cfg: loadConfig(s.Root), seen: map[string]string{}}
 	if *once {
 		if err = a.runOnce(); err != nil {
-			a.log("run-once", "error", err.Error())
-			fmt.Fprintln(os.Stderr, err)
+			a.log("run-once", "error", recordError(err))
+			fmt.Fprintln(os.Stderr, userError(err))
 			os.Exit(1)
 		}
 		return
@@ -869,7 +879,7 @@ func main() {
 	}
 	ln, err := net.Listen("tcp", *listen)
 	if err != nil {
-		showError(err.Error())
+		showError(userError(err))
 		os.Exit(1)
 	}
 	a.baseURL = "http://" + ln.Addr().String()
@@ -926,6 +936,6 @@ func main() {
 		}
 	}()
 	if err = srv.Serve(ln); err != nil && err != http.ErrServerClosed {
-		showError(err.Error())
+		showError(userError(err))
 	}
 }

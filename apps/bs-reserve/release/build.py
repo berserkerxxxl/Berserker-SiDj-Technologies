@@ -29,7 +29,7 @@ REPO = PROJECT.parents[1]
 SOURCE = PROJECT / "source"
 CONFIG = json.loads((PROJECT / "release/config.json").read_text(encoding="utf-8"))
 TARGETS = {entry["target"]: entry for entry in CONFIG["targets"]}
-EPOCH = 1793275200  # 2026-10-29 12:00 UTC; fixed archive metadata.
+EPOCH = 1793361600  # 2026-10-30 12:00 UTC; fixed archive metadata.
 ROOT_NAME = "BS_Reserve_Alpha"
 
 
@@ -184,7 +184,7 @@ def archive_bundle(bundle: Path, output: Path) -> None:
                 if not path.is_file():
                     continue
                 relative = path.relative_to(bundle)
-                info = zipfile.ZipInfo(ROOT_NAME + "/" + relative.as_posix(), (2026, 10, 29, 12, 0, 0))
+                info = zipfile.ZipInfo(ROOT_NAME + "/" + relative.as_posix(), (2026, 10, 30, 12, 0, 0))
                 info.create_system = 3
                 info.external_attr = (stat.S_IFREG | (0o755 if executable(relative) else 0o644)) << 16
                 info.compress_type = zipfile.ZIP_DEFLATED
@@ -210,7 +210,7 @@ def archive_bundle(bundle: Path, output: Path) -> None:
 def release_all(output: Path, cache: Path) -> dict:
     check_go()
     output.mkdir(parents=True, exist_ok=True)
-    result = {"version": CONFIG["version"], "build": CONFIG["build"], "date": "2026-10-29", "targets": []}
+    result = {"version": CONFIG["version"], "build": CONFIG["build"], "date": "2026-10-30", "targets": []}
     for target, entry in TARGETS.items():
         with tempfile.TemporaryDirectory(prefix="bs-reserve-build-") as temporary:
             bundle, binary, restic = stage_bundle(target, Path(temporary), cache)

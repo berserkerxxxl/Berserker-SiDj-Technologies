@@ -86,7 +86,7 @@ func (e *Engine) run(dir, repo, password string, args ...string) ([]byte, error)
 		if len(message) > 1200 {
 			message = message[len(message)-1200:]
 		}
-		return out.b, fmt.Errorf("restic завершился с ошибкой (%v): %s", err, message)
+		return out.b, &resticError{Cause: err, Output: message}
 	}
 	return out.b, nil
 }
@@ -204,7 +204,7 @@ func (e *Engine) backup(s *Store, repo, password string) (string, error) {
 		}
 	}
 	if id == "" {
-		return "", errors.New("restic не вернул идентификатор снимка")
+		return "", errors.New("Движок резервирования не вернул идентификатор снимка")
 	}
 	return id, nil
 }

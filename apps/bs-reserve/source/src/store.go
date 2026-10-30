@@ -18,8 +18,8 @@ import (
 	"time"
 )
 
-const Version = "0.1.0-alpha.5"
-const Build = "20261029.3"
+const Version = "0.1.0-alpha.6"
+const Build = "20261030.1"
 const maxSource = int64(2 << 30)
 const maxJSON = int64(256 << 20)
 const maxExpanded = uint64(8 << 30)
@@ -497,7 +497,14 @@ func contentText(v any) string {
 			return "[Вложение: " + t + "]"
 		}
 		if t := str(x["content_type"]); t != "" {
-			return "[Данные типа " + t + "; оригинал сохранён в JSON]"
+			switch t {
+			case "thoughts":
+				return "[Служебная запись. Оригинал сохранён в JSON.]"
+			case "reasoning_recap":
+				return "[Служебная сводка. Оригинал сохранён в JSON.]"
+			default:
+				return "[Этот формат сообщения пока не отображается. Оригинал сохранён в JSON.]"
+			}
 		}
 	}
 	return ""
@@ -779,7 +786,7 @@ func (s *Store) ImportFolder(folder string) (ImportResult, error) {
 	return result, s.save()
 }
 
-const recoveryText = "B/S Reserve 0.1.0-alpha.5 — независимое восстановление\n\n" +
+const recoveryText = "B/S Reserve 0.1.0-alpha.6 — независимое восстановление\n\n" +
 	"Резервный репозиторий restic зашифрован. Рабочий каталог Vault не зашифрован.\n" +
 	"Для аварийного восстановления нужны движок restic, весь репозиторий и его пароль.\n" +
 	"В командной строке: restic -r \"ПУТЬ_К_РЕПОЗИТОРИЮ\" snapshots\n" +
