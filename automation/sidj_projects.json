@@ -57,8 +57,8 @@
       "notes": "Версия для Windows, macOS и Linux. Проверяйте восстановление; не используйте одну копию как единственную. Встроенное расписание резервирования доступно на Windows.",
       "page": "https://berserkerxxxl.github.io/Berserker-SiDj-Technologies/apps/bs-reserve/",
       "workflows": [
-        "Test and Package B/S Reserve",
-        "Package B/S Reserve Alpha"
+        "reserve-platforms.yml",
+        "package-reserve-alpha.yml"
       ],
       "downloads": [
         {
