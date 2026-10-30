@@ -447,6 +447,10 @@ def process(update):
 def main():
     if not BOT_TOKEN or not CHAT_ID or not GITHUB_TOKEN:
         raise RuntimeError("Не настроены секреты Telegram или GITHUB_TOKEN")
+    webhook = telegram("getWebhookInfo", {})
+    if webhook.get("url"):
+        print("Активен Cloudflare webhook. Опрос Telegram отключён во избежание конфликта.")
+        return
     current = telegram("getMyCommands", {})
     if current != COMMANDS:
         telegram("setMyCommands", {"commands": COMMANDS})
