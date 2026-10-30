@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Manual GitHub Actions operations for bs-tech-sidj. Never print credentials."""
 import argparse
+import hashlib
+import hmac
 import json
 import os
 from pathlib import Path
@@ -24,7 +26,7 @@ HTTP = build_opener(NoRedirect())
 
 def settings(environ):
     names = ('CLOUDFLARE_API_TOKEN', 'CLOUDFLARE_ACCOUNT_ID', 'SIDJ_TELEGRAM_BOT_TOKEN',
-             'SIDJ_TELEGRAM_CHAT_ID', 'SIDJ_ADMIN_TOKEN')
+             'SIDJ_TELEGRAM_CHAT_ID')
     values = {name: environ.get(name, '').strip() for name in names}
     for name, value in values.items():
         if not value:
@@ -33,14 +35,22 @@ def settings(environ):
         raise RuntimeError('Некорректный формат CLOUDFLARE_API_TOKEN')
     if not re.fullmatch(r'[a-fA-F0-9]{32}', values['CLOUDFLARE_ACCOUNT_ID']):
         raise RuntimeError('Некорректный CLOUDFLARE_ACCOUNT_ID')
-    if not re.fullmatch(r'[A-Za-z0-9_-]{32,128}', values['SIDJ_ADMIN_TOKEN']):
-        raise RuntimeError('SIDJ_ADMIN_TOKEN: нужны 32–128 случайных символов A-Z a-z 0-9 _ -')
     if not re.fullmatch(r'\d{5,16}:[A-Za-z0-9_-]{20,}', values['SIDJ_TELEGRAM_BOT_TOKEN']):
         raise RuntimeError('Некорректный SIDJ_TELEGRAM_BOT_TOKEN')
     if not re.fullmatch(r'[1-9]\d{0,15}', values['SIDJ_TELEGRAM_CHAT_ID']):
         raise RuntimeError('Некорректный SIDJ_TELEGRAM_CHAT_ID')
     if int(values['SIDJ_TELEGRAM_CHAT_ID']) > 9007199254740991:
         raise RuntimeError('SIDJ_TELEGRAM_CHAT_ID превышает допустимый числовой диапазон')
+    # Keep administration and webhook credentials domain-separated. A bot token
+    # already grants Telegram webhook control; no extra user-entered password is
+    # required for the GitHub-only operations flow. Neither derived key is logged.
+    admin = environ.get('SIDJ_ADMIN_TOKEN', '').strip()
+    if not admin:
+        admin = hmac.new(values['SIDJ_TELEGRAM_BOT_TOKEN'].encode(),
+                         b'B/S-SiDj-admin:v1', hashlib.sha256).hexdigest()
+    if not re.fullmatch(r'[A-Za-z0-9_-]{32,128}', admin):
+        raise RuntimeError('SIDJ_ADMIN_TOKEN: нужны 32–128 случайных символов A-Z a-z 0-9 _ -')
+    values['SIDJ_ADMIN_TOKEN'] = admin
     if environ.get('SIDJ_FREE_PLAN_CONFIRMED') != 'yes':
         raise RuntimeError('Сначала проверь Workers Free в Cloudflare и подтверди его в форме запуска.')
     return values

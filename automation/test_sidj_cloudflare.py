@@ -22,11 +22,24 @@ def configuration():
 class CloudflareOperationsTests(unittest.TestCase):
     def test_missing_secrets_and_unconfirmed_plan_fail_without_network(self):
         for key in configuration():
+            if key == 'SIDJ_ADMIN_TOKEN':
+                continue
             env = configuration(); env.pop(key)
             with patch.object(ops.HTTP, 'open') as network:
                 with self.assertRaises(RuntimeError):
                     ops.settings(env)
                 network.assert_not_called()
+
+    def test_default_admin_key_is_stable_and_separate_from_webhook_credentials(self):
+        env = configuration(); env.pop('SIDJ_ADMIN_TOKEN')
+        first = ops.settings(env)['SIDJ_ADMIN_TOKEN']
+        self.assertRegex(first, r'^[a-f0-9]{64}$')
+        self.assertEqual(first, ops.settings(env)['SIDJ_ADMIN_TOKEN'])
+        webhook = ops.hashlib.sha256(('B/S-SiDj-webhook:' + env['SIDJ_TELEGRAM_BOT_TOKEN']).encode()).hexdigest()
+        self.assertNotEqual(first, webhook)
+        env['SIDJ_TELEGRAM_BOT_TOKEN'] = '12345:' + 'y' * 35
+        self.assertNotEqual(first, ops.settings(env)['SIDJ_ADMIN_TOKEN'])
+        self.assertEqual(ops.settings(configuration())['SIDJ_ADMIN_TOKEN'], configuration()['SIDJ_ADMIN_TOKEN'])
 
     def test_invalid_values_do_not_echo_credentials(self):
         for key, value in [('CLOUDFLARE_API_TOKEN', 'line\nbreak'), ('CLOUDFLARE_ACCOUNT_ID', 'wrong'),
