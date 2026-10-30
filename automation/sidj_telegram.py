@@ -1,40 +1,73 @@
 #!/usr/bin/env python3
-"""СиДжи: приватные Telegram-команды через GitHub Actions без отдельного сервера.
+"""СиДжи: каталог проектов, их сборки и выдача файлов через Telegram.
 
-Telegram хранит непрочитанные updates; подтверждение выполняется offset после
-успешной обработки, поэтому отдельная база состояния не требуется.
+Запускается по расписанию GitHub Actions. Токен и chat ID читаются из секретов,
+а пути скачивания — только из проверенного каталога этого репозитория.
 """
+import hashlib
 import json
+import mimetypes
 import os
 import re
+import uuid
 from datetime import datetime
+from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 from zoneinfo import ZoneInfo
 
+ROOT = Path(__file__).resolve().parent.parent
+CATALOG = ROOT / "automation" / "sidj_projects.json"
 BOT_TOKEN = os.environ.get("SIDJ_BOT_TOKEN", "").strip()
 CHAT_ID = os.environ.get("SIDJ_CHAT_ID", "").strip()
 GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN", "").strip()
 REPO = os.environ.get("GITHUB_REPOSITORY", "").strip()
 BOT_USERNAME = "bs_sidj_bot"
+MAX_DOCUMENT_BYTES = 49 * 1024 * 1024
 
 COMMANDS = [
     {"command": "start", "description": "Приветствие и возможности"},
-    {"command": "status", "description": "Состояние B/S Reserve"},
-    {"command": "builds", "description": "Последние сборки"},
+    {"command": "projects", "description": "Все программы B/S tech"},
+    {"command": "project", "description": "Описание выбранной программы"},
+    {"command": "download", "description": "Скачать программу в Telegram"},
+    {"command": "status", "description": "Состояние всех проектов"},
+    {"command": "builds", "description": "Последние сборки программ"},
     {"command": "errors", "description": "Ошибки сборок"},
-    {"command": "help", "description": "Помощь по командам"},
+    {"command": "help", "description": "Справка на русском"},
 ]
 HELP = (
     "🤖 СиДжи | B/S tech\n\n"
-    "Привет! Я помощник нашей лаборатории.\n\n"
-    "/status — состояние последней сборки B/S Reserve\n"
-    "/builds — пять последних сборок\n"
-    "/errors — недавние ошибки сборок\n"
-    "/help — эта подсказка\n\n"
-    "🔔 О завершении сборок сообщаю автоматически.\n"
-    "⏱ Команды обрабатываются приблизительно раз в 5 минут (иногда позже)."
+    "📂 /projects — каталог наших программ\n"
+    "📖 /project — описание и версии\n"
+    "📥 /download — получить файлы прямо сюда\n"
+    "📊 /status — состояние всех проектов\n"
+    "🔧 /builds — последние сборки\n"
+    "🚨 /errors — последние ошибки сборок\n"
+    "❓ /help — справка\n\n"
+    "Выбирай проект кнопками под сообщением.\n"
+    "⏱ Команды проверяются примерно раз в 5 минут; GitHub иногда задерживает запуск.\n"
+    "🔒 Бот отвечает только владельцу."
 )
+
+
+def catalog_projects():
+    with CATALOG.open(encoding="utf-8") as stream:
+        return json.load(stream)["projects"]
+
+
+def get_project(project_id):
+    for project in catalog_projects():
+        if project["id"] == project_id:
+            return project
+    return None
+
+
+def keyboard(rows):
+    return {"inline_keyboard": rows}
+
+
+def button(label, data):
+    return {"text": label, "callback_data": data}
 
 
 def telegram(method, data):
@@ -45,59 +78,72 @@ def telegram(method, data):
         method="POST",
     )
     try:
-        with urlopen(request, timeout=25) as response:
+        with urlopen(request, timeout=30) as response:
             result = json.load(response)
     except HTTPError as error:
-        # Не печатать URL: он содержит секретный токен.
+        # URL содержит токен: не раскрываем его в логах ошибок.
         raise RuntimeError(f"Telegram {method}: HTTP {error.code}") from None
     except URLError:
-        raise RuntimeError(f"Telegram {method}: ошибка подключения") from None
+        raise RuntimeError(f"Telegram {method}: не удалось подключиться") from None
     if not result.get("ok"):
         raise RuntimeError(f"Telegram {method}: запрос отклонён")
     return result.get("result")
 
 
-def github_runs():
-    if not re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", REPO):
-        raise RuntimeError("Некорректный GITHUB_REPOSITORY")
-    url = (
-        "https://api.github.com/repos/" + REPO
-        + "/actions/workflows/reserve-platforms.yml/runs?per_page=100"
-    )
-    request = Request(
-        url,
-        headers={
-            "Authorization": "Bearer " + GITHUB_TOKEN,
-            "Accept": "application/vnd.github+json",
-            "X-GitHub-Api-Version": "2022-11-28",
-            "User-Agent": "B-S-tech-SiDj-Bot",
-        },
-    )
+def say(message, markup=None):
+    payload = {"chat_id": CHAT_ID, "text": message[:3900], "disable_web_page_preview": True}
+    if markup:
+        payload["reply_markup"] = markup
+    telegram("sendMessage", payload)
+
+
+def github_get(url):
+    request = Request(url, headers={
+        "Authorization": "Bearer " + GITHUB_TOKEN,
+        "Accept": "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+        "User-Agent": "B-S-tech-SiDj-Bot",
+    })
     try:
-        with urlopen(request, timeout=20) as response:
-            data = json.load(response)
+        with urlopen(request, timeout=25) as response:
+            return json.load(response)
     except HTTPError as error:
         raise RuntimeError(f"GitHub API: HTTP {error.code}") from None
     except URLError:
         raise RuntimeError("GitHub API: нет соединения") from None
-    return data.get("workflow_runs", [])
 
 
-def moscow_time(value):
-    if not value:
+def project_runs(project, limit=12):
+    if not re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", REPO):
+        raise RuntimeError("Некорректный адрес репозитория")
+    runs = []
+    for name in project.get("workflows", []):
+        if not re.fullmatch(r"[A-Za-z0-9_.-]+\.ya?ml", name):
+            continue
+        url = (
+            f"https://api.github.com/repos/{REPO}/actions/workflows/"
+            f"{name}/runs?per_page={min(limit, 30)}"
+        )
+        runs.extend(github_get(url).get("workflow_runs", []))
+    runs.sort(key=lambda r: r.get("created_at", ""), reverse=True)
+    return runs[:limit]
+
+
+def time_msk(timestamp):
+    if not timestamp:
         return "дата неизвестна"
     try:
-        dt = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        dt = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
         return dt.astimezone(ZoneInfo("Europe/Moscow")).strftime("%d.%m.%Y %H:%M")
     except ValueError:
         return "дата неизвестна"
 
 
-def status_label(run):
+def state(run):
     status = run.get("status")
     conclusion = run.get("conclusion")
     if status in ("queued", "waiting", "pending", "requested"):
-        return "🕒 Ожидает запуска"
+        return "🕒 Ожидание"
     if status == "in_progress":
         return "🔄 Выполняется"
     return {
@@ -106,107 +152,264 @@ def status_label(run):
         "cancelled": "⚪ Отменена",
         "timed_out": "⏱ Превышено время",
         "skipped": "⏭ Пропущена",
-        "neutral": "ℹ️ Без итоговой оценки",
-    }.get(conclusion, "ℹ️ Статус не определён")
+    }.get(conclusion, "ℹ️ Нет результата")
 
 
-def one_run(run):
+def run_text(run, name):
     return (
-        f"#{run.get('run_number', '?')} — {status_label(run)}\n"
-        f"Ветка: {run.get('head_branch') or 'неизвестна'}\n"
-        f"Москва: {moscow_time(run.get('updated_at') or run.get('created_at'))}\n"
+        f"{name}: {state(run)}\n"
+        f"Время МСК: {time_msk(run.get('updated_at') or run.get('created_at'))}\n"
         f"{run.get('html_url', '')}"
     )
 
 
-def answer(command):
-    if command in ("/start", "/help"):
-        return HELP
-    if command not in ("/status", "/builds", "/errors"):
-        return "🤖 Я пока понимаю только команды:\n/status, /builds, /errors, /help"
+def list_projects():
+    projects = catalog_projects()
+    text = "🤖 B/S tech — наши разработки\n\n"
+    text += "\n".join(
+        f"• {p['name']} — {p.get('version', 'версия не указана')}"
+        for p in projects
+    )
+    text += "\n\nНажми на проект, чтобы прочитать описание и скачать файлы."
+    markup = keyboard([[button(p["name"], "p:" + p["id"])] for p in projects])
+    say(text, markup)
 
-    runs = github_runs()
-    if not runs:
-        return "💾 B/S Reserve\nВ GitHub пока нет доступных запусков сборки."
 
-    if command == "/status":
-        return "🤖 СиДжи | B/S tech\n💾 B/S Reserve — последняя сборка\n\n" + one_run(runs[0])
-    if command == "/builds":
-        lines = [
-            f"#{r.get('run_number', '?')}: {status_label(r)}"
-            f" — {moscow_time(r.get('updated_at') or r.get('created_at'))}"
-            for r in runs[:5]
-        ]
-        return "💾 B/S Reserve — последние сборки\n\n" + "\n".join(lines)
+def show_project(project_id):
+    project = get_project(project_id)
+    if not project:
+        list_projects()
+        return
+    text = (
+        f"📦 {project['name']} · {project.get('version', '')}\n\n"
+        f"{project['description']}\n\n"
+        f"ℹ️ {project['notes']}\n\n"
+        f"🌐 {project['page']}\n\n"
+        "📥 Выбери нужный файл для загрузки в этот чат."
+    )
+    rows = [[button(d["label"], f"d:{project_id}:{d['id']}")] for d in project["downloads"]]
+    rows.append([button("◀️ Все проекты", "projects")])
+    say(text, keyboard(rows))
 
-    errors = [r for r in runs if r.get("conclusion") in ("failure", "timed_out")]
-    if not errors:
-        return (
-            "✅ Среди последних " + str(len(runs))
-            + " запусков B/S Reserve ошибок не найдено."
-        )
-    return (
-        "🚨 B/S Reserve — недавние ошибки\n\n"
-        + "\n\n".join(one_run(r) for r in errors[:5])
+
+def show_downloads():
+    projects = catalog_projects()
+    say(
+        "📥 Выбери программу, затем нужную версию файла.\n"
+        "Файл придёт вложением в этот чат. Большие файлы могут отправляться дольше.",
+        keyboard([[button(p["name"], "p:" + p["id"])] for p in projects]),
     )
 
 
+def safe_document(project_id, download_id):
+    project = get_project(project_id)
+    if not project:
+        say("⚠️ Такой программы нет в каталоге.")
+        return
+    entry = next((d for d in project["downloads"] if d["id"] == download_id), None)
+    if not entry:
+        show_project(project_id)
+        return
+    path = ROOT / entry["path"]
+    resolved = path.resolve()
+    if not resolved.is_relative_to(ROOT.resolve()) or not path.is_file():
+        say("⚠️ Файл не найден в текущей версии GitHub. Используй ссылку на сайте:\n" + project["page"])
+        return
+    count = resolved.stat().st_size
+    if count > MAX_DOCUMENT_BYTES:
+        say("⚠️ Файл превышает лимит загрузки бота (примерно 50 МБ).\n" + project["page"])
+        return
+    # Проверяем контрольную сумму опубликованных архивов, если она доступна.
+    sha_file = path.with_name(path.name + ".sha256")
+    expected = entry.get("sha256")
+    if sha_file.is_file():
+        expected = sha_file.read_text(encoding="utf-8").split()[0]
+    if expected:
+        actual = hashlib.file_digest(path.open("rb"), "sha256").hexdigest()
+        if actual.lower() != expected.lower():
+            say("⛔ Проверка контрольной суммы не пройдена. Отправка отменена.")
+            return
+
+    # Telegram sendDocument: multipart/form-data, оригинальные байты из репозитория.
+    boundary = "sidj-" + uuid.uuid4().hex
+    filename = path.name
+    content_type = mimetypes.guess_type(filename)[0] or "application/octet-stream"
+    caption = f"📦 {project['name']} · {project.get('version', '')}\n{entry['label']}"
+    parts = []
+    def field(name, value):
+        return (
+            f"--{boundary}\r\nContent-Disposition: form-data; name=\"{name}\"\r\n\r\n"
+            f"{value}\r\n"
+        ).encode("utf-8")
+    parts.append(field("chat_id", CHAT_ID))
+    parts.append(field("caption", caption))
+    parts.append(field("disable_content_type_detection", "true"))
+    header = (
+        f"--{boundary}\r\n"
+        f"Content-Disposition: form-data; name=\"document\"; filename=\"{filename}\"\r\n"
+        f"Content-Type: {content_type}\r\n\r\n"
+    ).encode("utf-8")
+    body = b"".join(parts) + header + path.read_bytes() + b"\r\n" + f"--{boundary}--\r\n".encode("ascii")
+    req = Request(
+        "https://api.telegram.org/bot" + BOT_TOKEN + "/sendDocument",
+        data=body,
+        headers={"Content-Type": "multipart/form-data; boundary=" + boundary},
+        method="POST",
+    )
+    try:
+        with urlopen(req, timeout=130) as response:
+            result = json.load(response)
+    except HTTPError as error:
+        raise RuntimeError(f"Не удалось отправить файл: Telegram HTTP {error.code}") from None
+    except URLError:
+        raise RuntimeError("Не удалось подключиться к Telegram для отправки файла") from None
+    if not result.get("ok"):
+        raise RuntimeError("Telegram не принял файл")
+    print(f"Файл отправлен: {project_id}/{download_id} ({count} байт)")
+
+
+def all_builds(errors_only=False):
+    entries = []
+    for project in catalog_projects():
+        if project.get("workflows"):
+            for run in project_runs(project):
+                if not errors_only or run.get("conclusion") in ("failure", "timed_out"):
+                    entries.append((run.get("created_at", ""), project["name"], run))
+    entries.sort(key=lambda x: x[0], reverse=True)
+    return entries
+
+
+def show_status():
+    sections = ["📊 B/S tech — состояние проектов"]
+    for project in catalog_projects():
+        if not project.get("workflows"):
+            sections.append(f"📦 {project['name']} {project.get('version', '')}\nОпубликован; автоматическая сборка пока не настроена.")
+        else:
+            runs = project_runs(project, limit=5)
+            if runs:
+                sections.append(f"💾 {run_text(runs[0], project['name'])}")
+            else:
+                sections.append(f"💾 {project['name']}: данных о сборках пока нет.")
+    say("\n\n".join(sections), keyboard([[button("📂 Каталог программ", "projects")]]))
+
+
+def show_builds():
+    entries = all_builds()
+    if not entries:
+        say("🔧 У подключённых проектов пока нет записей автоматических сборок.")
+        return
+    text = "🔧 Последние сборки подключённых проектов\n\n"
+    text += "\n\n".join(run_text(run, name) for _, name, run in entries[:5])
+    text += "\n\nДля остальных программ автоматические сборки пока не настроены."
+    say(text)
+
+
+def show_errors():
+    entries = all_builds(errors_only=True)
+    if not entries:
+        say("✅ Среди доступных запусков подключённых проектов ошибок не обнаружено.")
+        return
+    text = "🚨 Последние ошибки сборок\n\n"
+    text += "\n\n".join(run_text(run, name) for _, name, run in entries[:5])
+    say(text)
+
+
+def handle_command(raw):
+    words = raw.strip().split()
+    cmd = words[0].lower() if words else "/help"
+    if cmd.startswith("/") and "@" in cmd:
+        cmd, mention = cmd.split("@", 1)
+        if mention != BOT_USERNAME:
+            return
+    if cmd in ("/help", "/start"):
+        say(HELP, keyboard([[button("📂 Все проекты", "projects")],
+                            [button("📥 Скачать программу", "downloads")]]))
+    elif cmd == "/projects":
+        list_projects()
+    elif cmd == "/project":
+        show_project(words[1].lower() if len(words) > 1 else "")
+    elif cmd == "/download":
+        if len(words) >= 3:
+            safe_document(words[1].lower(), words[2].lower())
+        elif len(words) == 2:
+            show_project(words[1].lower())
+        else:
+            show_downloads()
+    elif cmd == "/status":
+        show_status()
+    elif cmd == "/builds":
+        show_builds()
+    elif cmd == "/errors":
+        show_errors()
+    else:
+        say("🤖 Не знаю такой команды. Напиши /help или открой /projects.")
+
+
 def process(update):
+    cb = update.get("callback_query") or {}
+    if cb:
+        chat = (cb.get("message") or {}).get("chat") or {}
+        if chat.get("type") != "private" or str(chat.get("id")) != CHAT_ID:
+            return
+        telegram("answerCallbackQuery", {"callback_query_id": cb["id"]})
+        action = cb.get("data", "")
+        if action == "projects":
+            list_projects()
+        elif action == "downloads":
+            show_downloads()
+        elif re.fullmatch(r"p:[a-z0-9_]+", action):
+            show_project(action.split(":")[1])
+        elif re.fullmatch(r"d:[a-z0-9_]+:[a-z0-9_]+", action):
+            _, project, file_id = action.split(":")
+            safe_document(project, file_id)
+        return
     message = update.get("message") or {}
     chat = message.get("chat") or {}
-    # Строгая привязка к владельцу: чужие чаты полностью игнорируем.
     if chat.get("type") != "private" or str(chat.get("id")) != CHAT_ID:
         return
     raw = (message.get("text") or "").strip()
-    if not raw:
-        return
-    first = raw.split(maxsplit=1)[0].lower()
-    if first.startswith("/") and "@" in first:
-        cmd, mentioned = first.split("@", 1)
-        if mentioned != BOT_USERNAME:
-            return
-        first = cmd
-    if not first.startswith("/"):
-        first = "/help"
-    try:
-        response = answer(first)
-    except RuntimeError as error:
-        response = "⚠️ Не удалось получить данные:\n" + str(error)
-    telegram("sendMessage", {
-        "chat_id": CHAT_ID,
-        "text": response[:4000],
-        "disable_web_page_preview": True,
-    })
+    if raw:
+        handle_command(raw if raw.startswith("/") else "/help")
 
 
 def main():
     if not BOT_TOKEN or not CHAT_ID or not GITHUB_TOKEN:
-        raise RuntimeError("Отсутствуют секреты Telegram или GITHUB_TOKEN")
-
+        raise RuntimeError("Не настроены секреты Telegram или GITHUB_TOKEN")
     current = telegram("getMyCommands", {})
     if current != COMMANDS:
         telegram("setMyCommands", {"commands": COMMANDS})
-        print("Команды Telegram зарегистрированы.")
-
+        print("Меню команд обновлено.")
+    offset = None
     processed = 0
-    # Один рабочий процесс, без webhook, с подтверждением каждого update.
     for _ in range(5):
-        updates = telegram("getUpdates", {
-            "limit": 100, "timeout": 0, "allowed_updates": ["message"]
-        })
+        payload = {"limit": 100, "timeout": 0,
+                   "allowed_updates": ["message", "callback_query"]}
+        if offset is not None:
+            payload["offset"] = offset
+        updates = telegram("getUpdates", payload)
         if not updates:
             break
         for update in updates:
-            process(update)
-            # Telegram подтверждает все updates строго ниже offset.
-            telegram("getUpdates", {
-                "offset": update["update_id"] + 1,
-                "limit": 1, "timeout": 0, "allowed_updates": ["message"]
-            })
+            try:
+                process(update)
+            except RuntimeError as error:
+                print(f"Ошибка обработки команды: {error}")
+                try:
+                    say("⚠️ Не удалось выполнить команду: " + str(error))
+                except RuntimeError:
+                    # Не подтверждаем update при ошибке отправки: повторим позже.
+                    raise
+            offset = update["update_id"] + 1
             processed += 1
         if len(updates) < 100:
             break
-    print(f"Обработано входящих обновлений: {processed}")
+    if offset is not None:
+        # Подтверждаем обработанные updates на стороне Telegram.
+        telegram("getUpdates", {
+            "offset": offset, "limit": 1, "timeout": 0,
+            "allowed_updates": ["message", "callback_query"]
+        })
+    print(f"Обработано обновлений Telegram: {processed}")
 
 
 if __name__ == "__main__":
