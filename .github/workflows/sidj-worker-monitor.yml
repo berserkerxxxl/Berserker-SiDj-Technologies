@@ -1,0 +1,40 @@
+name: SiDj - independent health monitor
+
+on:
+  schedule:
+    # GitHub scheduling is best effort. Confirm only observations, not expected slots.
+    - cron: '7,22,37,52 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sidj-independent-health-monitor
+  cancel-in-progress: false
+
+jobs:
+  monitor:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          persist-credentials: false
+          sparse-checkout: automation
+      - name: Restore prior observation (no repository commits)
+        uses: actions/cache@v4
+        with:
+          path: .sidj-monitor-state.json
+          key: sidj-independent-health-v1-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            sidj-independent-health-v1-
+      - name: Test the monitor offline
+        run: python3 -m unittest discover -s automation -p 'test_sidj_worker_monitor.py' -v
+      - name: Check Worker, Telegram webhook and analytics token independently
+        env:
+          SIDJ_TELEGRAM_BOT_TOKEN: ${{ secrets.SIDJ_TELEGRAM_BOT_TOKEN }}
+          SIDJ_TELEGRAM_CHAT_ID: ${{ secrets.SIDJ_TELEGRAM_CHAT_ID }}
+          CLOUDFLARE_ANALYTICS_TOKEN: ${{ secrets.CLOUDFLARE_ANALYTICS_TOKEN }}
+        run: python3 automation/sidj_worker_monitor.py
