@@ -107,7 +107,7 @@ def smoke(binary: Path, target: str, work: Path) -> None:
         html = urllib.request.urlopen(url, timeout=10).read().decode("utf-8")
         token = re.search(r"const TOKEN='([a-f0-9]+)'", html).group(1)
         if build.CONFIG["version"] not in html:
-            raise AssertionError("alpha banner missing")
+            raise AssertionError("release version missing")
 
         def api(path: str, payload: dict | None = None):
             request = urllib.request.Request(url + path, headers={"X-BS-Token": token})

@@ -17,20 +17,20 @@ SHA-256: `c59ea53da225b8e760a76f180ea05ddb065ac865d3ceba6d76cd61c448619b96`
 Перед запуском проверяйте контрольную сумму и выполняйте обычную антивирусную проверку.
 
 
-# B/S Reserve — BETA
+# B/S Reserve — РЕЛИЗ
 
-Версия 0.2.0-beta.1, билд 20261030.5.
+Версия 0.2.0, билд 20261030.5.
 
 | Платформа | Архив | SHA-256 |
 | --- | --- | --- |
-| Windows x64 | [BS_Reserve_0.2.0-beta.1_build20261030.5_win64.zip](BS_Reserve_0.2.0-beta.1_build20261030.5_win64.zip) | `576122321be65459546ac8d7f9aa40ff7acfbabaac60aba2864bb9f332df34de` |
-| macOS · Apple Silicon | [BS_Reserve_0.2.0-beta.1_build20261030.5_macos_arm64.zip](BS_Reserve_0.2.0-beta.1_build20261030.5_macos_arm64.zip) | `55535ec6ad0f295c673ea975e36bf53bd9d4a8f68c8779453f95030d96808940` |
-| macOS · Intel | [BS_Reserve_0.2.0-beta.1_build20261030.5_macos_x64.zip](BS_Reserve_0.2.0-beta.1_build20261030.5_macos_x64.zip) | `d9704ee58091f264f175e0125a2eff7d17a2953567e23cb0bf1e845821900264` |
-| Linux x64 | [BS_Reserve_0.2.0-beta.1_build20261030.5_linux_x64.tar.gz](BS_Reserve_0.2.0-beta.1_build20261030.5_linux_x64.tar.gz) | `f07d70cbd434dc045c1883d933041ad9f600093d15c2a7c2169049893e60528f` |
-| Linux ARM64 | [BS_Reserve_0.2.0-beta.1_build20261030.5_linux_arm64.tar.gz](BS_Reserve_0.2.0-beta.1_build20261030.5_linux_arm64.tar.gz) | `a4779a428110caecb537901d2a63c1e6e2868ffa3c79c6cad989ff06032d0466` |
+| Windows x64 | [BS_Reserve_0.2.0_build20261030.5_win64.zip](BS_Reserve_0.2.0_build20261030.5_win64.zip) | `5fd4213d340c8947042f12f5c8734ab65f413477d66acf0c34c03a4eaa789746` |
+| macOS · Apple Silicon | [BS_Reserve_0.2.0_build20261030.5_macos_arm64.zip](BS_Reserve_0.2.0_build20261030.5_macos_arm64.zip) | `050e13d0b68ad05c4b02de3c09daa632f141184de2ed9cd2f7635d10ed09b1be` |
+| macOS · Intel | [BS_Reserve_0.2.0_build20261030.5_macos_x64.zip](BS_Reserve_0.2.0_build20261030.5_macos_x64.zip) | `67b694ed70e2c7d88ceb8cb5aaf1b2b5269f439e4ba185bae6cc431dce812074` |
+| Linux x64 | [BS_Reserve_0.2.0_build20261030.5_linux_x64.tar.gz](BS_Reserve_0.2.0_build20261030.5_linux_x64.tar.gz) | `24caf997c05c3e3cb7dfee0a5f9ad52df989c6bdb4d9e43a69ed3b8976cd061a` |
+| Linux ARM64 | [BS_Reserve_0.2.0_build20261030.5_linux_arm64.tar.gz](BS_Reserve_0.2.0_build20261030.5_linux_arm64.tar.gz) | `c79a3759d2c7055ea3943499cf6082cc216e8ce6fa2ab94adbfe97a5e2c9cc9a` |
 
 [Описание и ограничения](../apps/bs-reserve/README_RU.md) · [Тестирование](../apps/bs-reserve/ALPHA_FEEDBACK_RU.md).
 
-Экспериментальная бета. Начните с вымышленных примеров и копий файлов; не используйте как единственную резервную копию. Рабочая Data не шифруется приложением; шифруются репозитории restic. macOS: без Developer ID/нотариализации. macOS/Linux: ручной пароль и ручное шифрованное копирование; встроенное расписание и запоминание ключа пока только Windows.
+Публичный релиз. Начните с вымышленных примеров и копий файлов; не используйте как единственную резервную копию. Рабочая Data не шифруется приложением; шифруются репозитории restic. macOS: без Developer ID/нотариализации. macOS/Linux: ручной пароль и ручное шифрованное копирование; встроенное расписание и запоминание ключа пока только Windows.
 
 Предыдущая Windows-альфа 0.1.0-alpha.1, билд 20261028.2 остаётся доступна в downloads; новые пакеты её не заменяют.
