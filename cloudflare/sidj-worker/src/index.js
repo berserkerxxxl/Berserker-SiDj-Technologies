@@ -2,7 +2,7 @@
 import snapshot from "../../../automation/sidj_projects.json" with { type: "json" };
 import { adminRoute } from "./setup.js";
 import {
-  API, RAW, BOT_USERNAME, MAX_ATTACHMENT, PublicError, response, checkConfig,
+  REPO, API, RAW, BOT_USERNAME, MAX_ATTACHMENT, PublicError, response, checkConfig,
   webhookSecret, equalSecret, allowedUpdate, boundedBytes, boundedJSON,
   fetchSafe, validateCatalog, fileURL, hashHex, timeMSK,
 } from "./security.js";
