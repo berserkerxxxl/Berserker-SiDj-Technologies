@@ -35,15 +35,15 @@
 - Не запускайте на управляемых рабочих компьютерах без разрешения организации.
 - Файл предоставляет лаборатория Berserker & SiDj Technologies, а не OpenAI или Microsoft. Codex устанавливается из Microsoft Store, а не поставляется внутри EXE.
 
-## B/S Reserve · 0.1.0-alpha.6
+## B/S Reserve · 0.1.0-alpha.7
 
-**Открытая альфа. Билд 20261030.1. Windows x64, macOS Apple Silicon/Intel, Linux x64/ARM64.**
+**Открытая альфа. Билд 20261030.2. Windows x64, macOS Apple Silicon/Intel, Linux x64/ARM64.**
 
 Локальный архив готовых выгрузок ChatGPT, памяти, инструкций, файлов и разработок. Версии, поиск, имена файлов по карте выгрузки, вложения в чатах, шифрованные снимки restic и проверка восстановления.
 
 - [Страница и выбор скачивания](https://berserkerxxxl.github.io/Berserker-SiDj-Technologies/apps/bs-reserve/)
 - [Инструкция](apps/bs-reserve/README_RU.md) · [Протокол](apps/bs-reserve/TEST_REPORT_RU.md)
-- [Исходники](apps/bs-reserve/source) · [Манифест SHA-256](apps/bs-reserve/releases/0.1.0-alpha.6.json)
+- [Исходники](apps/bs-reserve/source) · [Манифест SHA-256](apps/bs-reserve/releases/0.1.0-alpha.7.json)
 
 macOS 13+: сборки без Developer ID и нотариализации Apple. В macOS/Linux пароль вводится вручную; хранение ключа и встроенное расписание пока только Windows. Автоматический приём Inbox работает на всех платформах. Начните с вымышленных примеров; не используйте как единственную копию. Рабочая Data открытая; шифруются отдельные репозитории. Проверка на пользовательских компьютерах и реальных данных продолжается.
 
