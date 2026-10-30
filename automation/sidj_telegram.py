@@ -155,12 +155,61 @@ def state(run):
     }.get(conclusion, "ℹ️ Нет результата")
 
 
-def run_text(run, name):
-    return (
-        f"{name}: {state(run)}\n"
-        f"Время МСК: {time_msk(run.get('updated_at') or run.get('created_at'))}\n"
-        f"{run.get('html_url', '')}"
+def failure_reason(run):
+    """Краткая причина по неуспешному заданию, без выдуманных подробностей."""
+    conclusion = run.get("conclusion")
+    if conclusion == "timed_out":
+        return "Превышено время выполнения."
+    if conclusion != "failure":
+        return None
+    run_id = run.get("id")
+    if not isinstance(run_id, int):
+        return "Один из этапов сборки завершился ошибкой."
+    try:
+        jobs = github_get(
+            f"https://api.github.com/repos/{REPO}/actions/runs/{run_id}/jobs?per_page=100"
+        ).get("jobs", [])
+    except RuntimeError:
+        return "Не удалось получить подробности сбоя из GitHub."
+    for job in jobs:
+        if job.get("conclusion") in ("failure", "timed_out"):
+            failed_step = next(
+                (step.get("name", "") for step in job.get("steps", [])
+                 if step.get("conclusion") in ("failure", "timed_out")), ""
+            )
+            job_name = job.get("name") or "неизвестный этап"
+            return "Не прошёл этап: " + job_name + (
+                " → " + failed_step if failed_step else ""
+            )
+    return "Один из этапов сборки завершился ошибкой."
+
+
+def error_button(project, run):
+    """Кнопка вместо длинной ссылки. Только для настоящих ошибок."""
+    if run.get("conclusion") not in ("failure", "timed_out"):
+        return None
+    url = run.get("html_url", "")
+    if not re.fullmatch(
+        r"https://github\.com/" + re.escape(REPO) + r"/actions/runs/[0-9]+", url
+    ):
+        return None
+    label = "🔍 Посмотреть ошибку"
+    number = run.get("run_number")
+    if number:
+        label += f" #{number}"
+    return {"text": label, "url": url}
+
+
+def run_text(run, name, version=""):
+    label = name + (" · " + str(version) if version else "")
+    result = (
+        f"{label}: {state(run)}\n"
+        f"Время МСК: {time_msk(run.get('updated_at') or run.get('created_at'))}"
     )
+    reason = failure_reason(run)
+    if reason:
+        result += "\nПричина: " + reason
+    return result
 
 
 def list_projects():
@@ -274,23 +323,34 @@ def all_builds(errors_only=False):
         if project.get("workflows"):
             for run in project_runs(project):
                 if not errors_only or run.get("conclusion") in ("failure", "timed_out"):
-                    entries.append((run.get("created_at", ""), project["name"], run))
+                    entries.append((run.get("created_at", ""), project, run))
     entries.sort(key=lambda x: x[0], reverse=True)
     return entries
 
 
 def show_status():
     sections = ["📊 B/S tech — состояние проектов"]
+    failed = []
     for project in catalog_projects():
         if not project.get("workflows"):
-            sections.append(f"📦 {project['name']} {project.get('version', '')}\nОпубликован; автоматическая сборка пока не настроена.")
+            sections.append(
+                f"📦 {project['name']} · {project.get('version', '')}\n"
+                "Опубликован. Автоматическая сборка не настроена."
+            )
         else:
             runs = project_runs(project, limit=5)
             if runs:
-                sections.append(f"💾 {run_text(runs[0], project['name'])}")
+                run = runs[0]
+                sections.append(
+                    "💾 " + run_text(run, project["name"], project.get("version", ""))
+                )
+                failed.append((project, run))
             else:
                 sections.append(f"💾 {project['name']}: данных о сборках пока нет.")
-    say("\n\n".join(sections), keyboard([[button("📂 Каталог программ", "projects")]]))
+    rows = [[button("📂 Каталог программ", "projects")]]
+    rows.extend([[b] for project, run in failed
+                 if (b := error_button(project, run)) is not None])
+    say("\n\n".join(sections), keyboard(rows))
 
 
 def show_builds():
@@ -298,10 +358,16 @@ def show_builds():
     if not entries:
         say("🔧 У подключённых проектов пока нет записей автоматических сборок.")
         return
+    latest = entries[:5]
     text = "🔧 Последние сборки подключённых проектов\n\n"
-    text += "\n\n".join(run_text(run, name) for _, name, run in entries[:5])
+    text += "\n\n".join(
+        run_text(run, project["name"], project.get("version", ""))
+        for _, project, run in latest
+    )
     text += "\n\nДля остальных программ автоматические сборки пока не настроены."
-    say(text)
+    rows = [[b] for _, project, run in latest
+            if (b := error_button(project, run)) is not None]
+    say(text, keyboard(rows) if rows else None)
 
 
 def show_errors():
@@ -309,9 +375,15 @@ def show_errors():
     if not entries:
         say("✅ Среди доступных запусков подключённых проектов ошибок не обнаружено.")
         return
+    latest = entries[:5]
     text = "🚨 Последние ошибки сборок\n\n"
-    text += "\n\n".join(run_text(run, name) for _, name, run in entries[:5])
-    say(text)
+    text += "\n\n".join(
+        run_text(run, project["name"], project.get("version", ""))
+        for _, project, run in latest
+    )
+    rows = [[b] for _, project, run in latest
+            if (b := error_button(project, run)) is not None]
+    say(text, keyboard(rows) if rows else None)
 
 
 def handle_command(raw):
