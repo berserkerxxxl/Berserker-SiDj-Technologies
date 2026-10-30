@@ -151,10 +151,11 @@ def check(now=None, observed=None, notify=send):
     # Commit state only after Telegram confirms delivery. A failed send can
     # be retried on the next run; a lost response may rarely duplicate a notice.
     msk = datetime.fromtimestamp(now, MSK).strftime('%d.%m.%Y %H:%M МСК')
-    for message in messages:
+    if messages:
+        # One combined message avoids the per-chat Telegram rate limit.
         try:
-            notify(token, chat, '🤖 B/S tech | Мониторинг\n' + message + '\n🕒 ' + msk)
-        except (HTTPError, URLError, TimeoutError, ValueError, UnicodeError, OSError) as exc:
+            notify(token, chat, '🤖 B/S tech | Мониторинг\n' + '\n\n'.join(messages) + '\n🕒 ' + msk)
+        except (HTTPError, URLError, TimeoutError, ValueError, UnicodeError, OSError):
             raise RuntimeError('Не удалось доставить уведомление о состоянии. Проверь журнал GitHub Actions.') from None
     STATE.write_text(json.dumps(state, separators=(',', ':')), encoding='utf-8')
     # Fixed, nonsensitive diagnostic only (no response bodies or URLs with tokens).
