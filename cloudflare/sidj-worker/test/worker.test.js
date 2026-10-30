@@ -192,8 +192,20 @@ test("all catalog commands show programs, descriptions, versions and download bu
   }
   const shown = f.tg.at(-1).data;
   assert.match(shown.text, /B\/S Reserve · 0.2.0/);
-  assert.ok(shown.text.includes(manifest.projects.at(-1).description));
+  assert.ok(shown.text.includes(manifest.projects.find(p => p.id === "reserve").description));
   assert.equal(shown.reply_markup.inline_keyboard[0][0].callback_data, "d:reserve:win");
+});
+
+test("SiDj source project has public source buttons without a fake download", async () => {
+  const f = await fixture();
+  assert.equal((await f.send(message("/project sidj"))).status, 200);
+  const shown = f.tg.at(-1).data;
+  assert.match(shown.text, /B\/S SiDj/);
+  assert.match(shown.text, /Исходники и описание по ссылкам/);
+  assert.ok(!shown.text.includes("Выбери файл:"));
+  const buttons = shown.reply_markup.inline_keyboard.flat().filter(b => b.url);
+  assert.ok(buttons.some(b => b.url.endsWith("/tree/main/cloudflare/sidj-worker")));
+  assert.ok(buttons.some(b => b.url.endsWith("/blob/main/automation/sidj_ai_agent.py")));
 });
 
 test("callback ack precedes all catalog/API/file work, including stale ack errors", async () => {
@@ -227,7 +239,7 @@ test("large tar.gz uses immutable commit link and expected SHA, without bufferin
   const f = await fixture();
   assert.equal((await f.send(message("/download reserve linux_x64"))).status, 200);
   assert.equal(f.calls.filter(c => c.url.includes("raw.githubusercontent.com")).length, 1, "only the catalog is fetched");
-  const data = f.tg.at(-1).data, file = manifest.projects.at(-1).downloads.find(d => d.id === "linux_x64");
+  const data = f.tg.at(-1).data, file = manifest.projects.find(p => p.id === "reserve").downloads.find(d => d.id === "linux_x64");
   assert.ok(data.text.includes(file.sha256));
   assert.equal(data.reply_markup.inline_keyboard[0][0].url, fileURL(manifest, file));
   assert.ok(!data.text.includes("SHA-256 проверен"));
@@ -237,7 +249,7 @@ test("large ZIP is delegated to Telegram by immutable URL without a Worker buffe
   const f = await fixture();
   assert.equal((await f.send(message("/download reserve win"))).status, 200);
   assert.equal(f.calls.filter(c => c.url.includes("raw.githubusercontent.com")).length, 1);
-  const data = f.tg.find(t => t.method === "sendDocument").data, file = manifest.projects.at(-1).downloads[0];
+  const data = f.tg.find(t => t.method === "sendDocument").data, file = manifest.projects.find(p => p.id === "reserve").downloads[0];
   assert.equal(data.document, fileURL(manifest, file));
   assert.ok(data.caption.includes(file.sha256));
   assert.ok(!data.caption.includes("SHA-256 проверен"));

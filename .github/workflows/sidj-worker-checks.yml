@@ -9,12 +9,14 @@ on:
       - 'automation/*sidj*'
       - '.github/workflows/sidj-worker-checks.yml'
       - '.github/workflows/sidj-ai-telegram-notify.yml'
+      - '.github/workflows/sidj-portfolio-ai-review.yml'
   pull_request:
     paths:
       - 'cloudflare/sidj-worker/**'
       - 'automation/*sidj*'
       - '.github/workflows/sidj-worker-checks.yml'
       - '.github/workflows/sidj-ai-telegram-notify.yml'
+      - '.github/workflows/sidj-portfolio-ai-review.yml'
   workflow_dispatch:
 
 permissions:
@@ -41,6 +43,8 @@ jobs:
         run: python3 -m unittest discover -s automation -p 'test_sidj_ai_agent.py' -v
       - name: Verify private AI notification safety without network
         run: python3 -m unittest discover -s automation -p 'test_sidj_ai_notify.py' -v
+      - name: Verify multi-project AI audits offline
+        run: python3 -m unittest discover -s automation -p 'test_sidj_portfolio_audit.py' -v
       - name: Verify polling fallback and activation race
         run: python3 -m unittest discover -s automation -p 'test_sidj_telegram.py' -v
       - name: Verify manual Cloudflare operations without credentials
