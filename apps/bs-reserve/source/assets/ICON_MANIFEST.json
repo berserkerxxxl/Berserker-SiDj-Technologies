@@ -1,0 +1,25 @@
+{
+  "name": "B/S Reserve Windows icon",
+  "sizes": [
+    16,
+    20,
+    24,
+    32,
+    40,
+    48,
+    64,
+    96,
+    128,
+    256
+  ],
+  "files": {
+    "assets/bs-logo-original.png": "eb97a6c24714d0b9cd9db9d74919a7cf594e2973325c99000d889ee830f18078",
+    "assets/bs-reserve.ico": "5af2a4faf30fdbda500b58b98144b9f7695503c6206641f749535d42955c23a1",
+    "src/rsrc_windows_amd64.syso": "5fb8212e23e2c7b69cf79d1f1e09c88a2510c13d82263cea1a6db07beda9971c"
+  },
+  "generator": {
+    "module": "github.com/akavel/rsrc",
+    "version": "v0.10.2",
+    "sum": "h1:Zxm8V5eI1hW4gGaYsJQUhxpjkENuG91ki8B4zCrvEsw="
+  }
+}

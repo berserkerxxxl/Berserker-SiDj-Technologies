@@ -1,6 +1,6 @@
 {
-  "version": "0.1.0-alpha.7",
-  "build": "20261030.2",
+  "version": "0.1.0-alpha.8",
+  "build": "20261030.3",
   "go_version": "go1.27.3",
   "restic_version": "0.19.1",
   "baseline_path": "downloads/BS_Reserve_0.1.0-alpha.1_build20261028.2_win64.zip",

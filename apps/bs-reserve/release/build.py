@@ -29,7 +29,7 @@ REPO = PROJECT.parents[1]
 SOURCE = PROJECT / "source"
 CONFIG = json.loads((PROJECT / "release/config.json").read_text(encoding="utf-8"))
 TARGETS = {entry["target"]: entry for entry in CONFIG["targets"]}
-EPOCH = 1793365200  # 2026-10-30 13:00 UTC; fixed archive metadata.
+EPOCH = 1793368800  # 2026-10-30 14:00 UTC; fixed archive metadata.
 ROOT_NAME = "BS_Reserve_Alpha"
 
 
