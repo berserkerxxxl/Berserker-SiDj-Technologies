@@ -18,8 +18,8 @@ import (
 	"time"
 )
 
-const Version = "0.1.0-alpha.9"
-const Build = "20261030.4"
+const Version = "0.2.0-beta.1"
+const Build = "20261030.5"
 const maxSource = int64(2 << 30)
 const maxJSON = int64(256 << 20)
 const maxExpanded = uint64(8 << 30)
