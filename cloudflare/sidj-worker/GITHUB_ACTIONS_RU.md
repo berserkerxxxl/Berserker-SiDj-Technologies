@@ -50,3 +50,11 @@ python3 -m unittest discover -s automation -p 'test_sidj_cloudflare.py' -v
 После активации доступен явный интеграционный тест `python3 automation/sidj_cloudflare_smoke.py --send-test-messages`. Он требует те же секреты и подтверждение Workers Free, проверяет панель и подключённый webhook, затем отправляет тестовые команды только в настроенный личный чат. Записывает время обработки и не выводит секреты. Это синтетические подписанные обновления; реальные нажатия кнопок и полученные файлы проверяются отдельно.
 
 Официальные источники: [Cloudflare API Tokens](https://developers.cloudflare.com/fundamentals/api/get-started/create-token/), [получение поддомена Workers и требуемое право Workers Scripts](https://developers.cloudflare.com/api/resources/workers/subresources/subdomains/methods/get/), [группы concurrency GitHub Actions](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency).
+
+## Чтение CPU и квот
+
+Для аналитики используется отдельный GitHub Secret CLOUDFLARE_ANALYTICS_TOKEN: право Account → Account Analytics → Read только для выбранного аккаунта. Никаких прав редактирования или доступа к оплате не требуется. Account ID берётся из существующего CLOUDFLARE_ACCOUNT_ID. Значения токенов не отправляются в чат.
+
+Открыть Actions → SiDj - Worker metrics (read only) → Run workflow на main. Workflow запускает тесты обработки данных и читает GraphQL Analytics без развёртывания, изменений webhook и доступа к токену Telegram. Отчёт содержит только агрегированные показатели этого Worker, общий счётчик вызовов для суточной квоты и время по Москве; Account ID и токен в него не выводятся. В публичном репозитории агрегаты в журнале Actions доступны читателям, поэтому содержимое запросов, пользователи и другие Worker по именам не запрашиваются.
+
+Скрипт проверяет единицы CPU по описанию схемы и не объединяет процентили разных групп. Если единицы не подтверждены, выводит исходные значения с явной пометкой. Пустая выборка не считается нулевым CPU. P99 — не максимум; errors считает runtime failures, а не все HTTP-ошибки. Суточная квота Free сбрасывается в 03:00 МСК. Метрики могут быть выборочными и задерживаться; текущий тариф подтверждается владельцем, биллинг этим токеном не читается.
