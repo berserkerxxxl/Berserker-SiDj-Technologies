@@ -1,0 +1,92 @@
+{
+  "version": 1,
+  "projects": [
+    {
+      "id": "toolkit",
+      "name": "B/S Excel Toolkit",
+      "version": "1.0.0",
+      "description": "Инструмент для работы с Excel прямо в браузере: удаление макросов, снятие защиты листов и структуры книги, разблокировка ячеек и преобразование XLSM в XLSX.",
+      "notes": "HTML работает локально. Сохраняйте исходный файл Excel перед изменениями.",
+      "page": "https://berserkerxxxl.github.io/Berserker-SiDj-Technologies/apps/BS_Excel_Toolkit_1_0_0.html",
+      "workflows": [],
+      "downloads": [
+        {
+          "id": "html",
+          "label": "HTML для браузера",
+          "path": "apps/BS_Excel_Toolkit_1_0_0.html"
+        }
+      ]
+    },
+    {
+      "id": "limits",
+      "name": "B/S tech-Limits AI",
+      "version": "3.9",
+      "description": "Панель в ChatGPT и Gemini: оценка лимитов, московское время и настройки интерфейса. Для Gemini проценты расчётные, а не официальные данные Google.",
+      "notes": "Для установки скрипта требуется Tampermonkey. На Gemini значения приблизительные.",
+      "page": "https://berserkerxxxl.github.io/Berserker-SiDj-Technologies/#limits-howto",
+      "workflows": [],
+      "downloads": [
+        {
+          "id": "script",
+          "label": "Скрипт Tampermonkey",
+          "path": "downloads/BS-tech-Limits-AI-v3.9.user.js"
+        }
+      ]
+    },
+    {
+      "id": "codex",
+      "name": "B/S Codex Installer",
+      "version": "1.0",
+      "description": "Windows-утилита для помощи с установкой официального Codex через Microsoft Store: проверяет блокирующие записи hosts и помогает запустить установку.",
+      "notes": "Работает с системными настройками, может требовать администратора. Не используйте на служебных ПК без разрешения. Это не официальный установщик OpenAI.",
+      "page": "https://berserkerxxxl.github.io/Berserker-SiDj-Technologies/#codex-installer",
+      "workflows": [],
+      "downloads": [
+        {
+          "id": "win",
+          "label": "Windows EXE",
+          "path": "downloads/BS_Codex_Installer_1_0_0.exe"
+        }
+      ]
+    },
+    {
+      "id": "reserve",
+      "name": "B/S Reserve",
+      "version": "0.2.0",
+      "description": "Локальное резервирование выгрузок ChatGPT, истории переписок, файлов, инструкций и разработок. Поиск, сохранение версий и шифрованные резервные копии через restic.",
+      "notes": "Версия для Windows, macOS и Linux. Проверяйте восстановление; не используйте одну копию как единственную. Встроенное расписание резервирования доступно на Windows.",
+      "page": "https://berserkerxxxl.github.io/Berserker-SiDj-Technologies/apps/bs-reserve/",
+      "workflows": [
+        "Test and Package B/S Reserve",
+        "Package B/S Reserve Alpha"
+      ],
+      "downloads": [
+        {
+          "id": "win",
+          "label": "Windows x64 ZIP",
+          "path": "downloads/BS_Reserve_0.2.0_build20261030.5_win64.zip"
+        },
+        {
+          "id": "mac_arm",
+          "label": "macOS Apple Silicon ZIP",
+          "path": "downloads/BS_Reserve_0.2.0_build20261030.5_macos_arm64.zip"
+        },
+        {
+          "id": "mac_intel",
+          "label": "macOS Intel ZIP",
+          "path": "downloads/BS_Reserve_0.2.0_build20261030.5_macos_x64.zip"
+        },
+        {
+          "id": "linux_x64",
+          "label": "Linux x64 tar.gz",
+          "path": "downloads/BS_Reserve_0.2.0_build20261030.5_linux_x64.tar.gz"
+        },
+        {
+          "id": "linux_arm",
+          "label": "Linux ARM64 tar.gz",
+          "path": "downloads/BS_Reserve_0.2.0_build20261030.5_linux_arm64.tar.gz"
+        }
+      ]
+    }
+  ]
+}
