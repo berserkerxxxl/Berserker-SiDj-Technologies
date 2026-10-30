@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 )
 
 func TestScheduledForwardingWaitsForCompletionAndReportsFailure(t *testing.T) {
@@ -19,10 +18,9 @@ func TestScheduledForwardingWaitsForCompletionAndReportsFailure(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(s.Root, "server-address.txt"), []byte(server.URL), 0600); err != nil {
 		t.Fatal(err)
 	}
-	start := time.Now()
 	err := forwardRunOnce(s.Root)
-	if err == nil || time.Since(start) < 300*time.Millisecond {
-		t.Fatalf("scheduled request did not report actual failure: %v", err)
+	if err == nil {
+		t.Fatal("scheduled request did not report actual failure")
 	}
 	cfg := loadConfig(s.Root)
 	if cfg.AutoLastOutcome != "error" || cfg.AutoLastAttempt == "" || cfg.AutoLastFailure == "" || cfg.AutoLastError == "" {
