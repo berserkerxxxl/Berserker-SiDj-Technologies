@@ -111,7 +111,16 @@ export async function boundedJSON(message, limit = MAX_UPDATE) {
 }
 
 export async function fetchSafe(url, init = {}, timeout = 4000) {
-  try { return await fetch(url, { ...init, redirect: "error", signal: AbortSignal.timeout(timeout) }); }
+  try {
+    // workerd supports follow/manual, but not the browser's redirect:error.
+    // Never forward credentials: inspect the first response without following.
+    const result = await fetch(url, { ...init, redirect: "manual", signal: AbortSignal.timeout(timeout) });
+    if (result.status >= 300 && result.status < 400) {
+      await result.body?.cancel();
+      throw new PublicError("Перенаправление внешнего сервиса отклонено.");
+    }
+    return result;
+  }
   catch { throw new PublicError("Сервис временно недоступен. Повтори команду."); }
 }
 

@@ -83,5 +83,7 @@ jobs:
                   raise SystemExit('Telegram ' + method + ': запрос отклонён.')
               print('Telegram ' + method + ': OK', flush=True)
           PY
+          python3 automation/sidj_cloudflare.py deploy
           python3 automation/sidj_cloudflare.py "$SIDJ_OPERATION"
+          python3 automation/sidj_cloudflare_smoke.py --send-test-messages
           python3 automation/sidj_cloudflare.py status

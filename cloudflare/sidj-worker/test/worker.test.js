@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import manifest from "../../../automation/sidj_projects.json" with { type: "json" };
-import { webhookSecret, boundedBytes, validateCatalog, fileURL, timeMSK, MAX_ATTACHMENT } from "../src/security.js";
+import { webhookSecret, boundedBytes, validateCatalog, fileURL, timeMSK, MAX_ATTACHMENT, fetchSafe } from "../src/security.js";
 
 const env = { SIDJ_TELEGRAM_BOT_TOKEN: "12345:" + "x".repeat(35), SIDJ_TELEGRAM_CHAT_ID: "42",
   SIDJ_PUBLIC_URL: "https://bs-tech-sidj.example.workers.dev/", SIDJ_ADMIN_TOKEN: "a".repeat(48) };
@@ -23,7 +23,7 @@ async function fixture(options = {}) {
   globalThis.fetch = async (url, init = {}) => {
     const parsed = new URL(url), method = parsed.pathname.split("/").at(-1);
     calls.push({ url, init });
-    assert.equal(init.redirect, "error");
+    assert.equal(init.redirect, "manual");
     if (parsed.hostname === "api.telegram.org") {
       const data = init.body instanceof FormData ? init.body : JSON.parse(init.body);
       tg.push({ method, data });
@@ -61,6 +61,22 @@ async function fixture(options = {}) {
   } };
 }
 test.afterEach(() => { globalThis.fetch = realFetch; });
+
+test("outbound redirects are rejected without forwarding the authorization header", async () => {
+  let calls = 0, cancelled = false;
+  globalThis.fetch = async (_url, init) => {
+    calls++;
+    assert.equal(init.redirect, "manual");
+    return new Response(new ReadableStream({ cancel() { cancelled = true; } }), {
+      status: 302, headers: { Location: "https://untrusted.example/" },
+    });
+  };
+  await assert.rejects(fetchSafe("https://api.telegram.org/test", {
+    headers: { Authorization: "Bearer test-only" },
+  }), /Сервис временно недоступен/);
+  assert.equal(calls, 1);
+  assert.equal(cancelled, true);
+});
 
 test("public GET activation cannot change Telegram configuration", async () => {
   const f = await fixture();

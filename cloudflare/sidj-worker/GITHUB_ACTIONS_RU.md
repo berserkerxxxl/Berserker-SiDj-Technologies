@@ -45,4 +45,8 @@ python3 -m unittest discover -s automation -p 'test_sidj_cloudflare.py' -v
 
 Тесты проверяют отсутствие секретов в аргументах/выводе, передачу secret bulk через stdin, отказ от перенаправлений с Authorization, ограничения адреса, явное подтверждение тарифа, подготовку активации и отсутствие переключения webhook на этапе deploy. Реальные права токена, тариф и доставку Telegram подтверждают после ввода секретов.
 
+`npm test` также запускает настоящий workerd через Miniflare: проверяет исходящий запрос и отказ от перенаправления с заголовком Authorization. В runtime Cloudflare нужен `redirect: manual` и явная проверка 3xx; браузерный `redirect: error` здесь не поддерживается.
+
+После активации доступен явный интеграционный тест `python3 automation/sidj_cloudflare_smoke.py --send-test-messages`. Он требует те же секреты и подтверждение Workers Free, проверяет панель и подключённый webhook, затем отправляет тестовые команды только в настроенный личный чат. Записывает время обработки и не выводит секреты. Это синтетические подписанные обновления; реальные нажатия кнопок и полученные файлы проверяются отдельно.
+
 Официальные источники: [Cloudflare API Tokens](https://developers.cloudflare.com/fundamentals/api/get-started/create-token/), [получение поддомена Workers и требуемое право Workers Scripts](https://developers.cloudflare.com/api/resources/workers/subresources/subdomains/methods/get/), [группы concurrency GitHub Actions](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency).
