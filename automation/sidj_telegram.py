@@ -50,6 +50,10 @@ HELP = (
 )
 
 
+class PollingConflict(RuntimeError):
+    """getUpdates raced with webhook activation or another poller."""
+
+
 def catalog_projects():
     with CATALOG.open(encoding="utf-8") as stream:
         return json.load(stream)["projects"]
@@ -82,6 +86,8 @@ def telegram(method, data):
             result = json.load(response)
     except HTTPError as error:
         # URL содержит токен: не раскрываем его в логах ошибок.
+        if method == "getUpdates" and error.code == 409:
+            raise PollingConflict("Telegram: конфликт обработчика getUpdates") from None
         raise RuntimeError(f"Telegram {method}: HTTP {error.code}") from None
     except URLError:
         raise RuntimeError(f"Telegram {method}: не удалось подключиться") from None
@@ -421,7 +427,9 @@ def process(update):
     cb = update.get("callback_query") or {}
     if cb:
         chat = (cb.get("message") or {}).get("chat") or {}
-        if chat.get("type") != "private" or str(chat.get("id")) != CHAT_ID:
+        sender = cb.get("from") or {}
+        if (chat.get("type") != "private" or str(chat.get("id")) != CHAT_ID
+                or str(sender.get("id")) != CHAT_ID or sender.get("is_bot") is not False):
             return
         telegram("answerCallbackQuery", {"callback_query_id": cb["id"]})
         action = cb.get("data", "")
@@ -437,7 +445,9 @@ def process(update):
         return
     message = update.get("message") or {}
     chat = message.get("chat") or {}
-    if chat.get("type") != "private" or str(chat.get("id")) != CHAT_ID:
+    sender = message.get("from") or {}
+    if (chat.get("type") != "private" or str(chat.get("id")) != CHAT_ID
+            or str(sender.get("id")) != CHAT_ID or sender.get("is_bot") is not False):
         return
     raw = (message.get("text") or "").strip()
     if raw:
@@ -488,5 +498,17 @@ def main():
     print(f"Обработано обновлений Telegram: {processed}")
 
 
+def run():
+    try:
+        main()
+    except PollingConflict:
+        # Activation can happen after the initial getWebhookInfo check.
+        # Never delete a webhook, consume another batch or expose the token.
+        if telegram("getWebhookInfo", {}).get("url"):
+            print("Webhook включён во время опроса. Опрос остановлен; очередь не сброшена.")
+            return
+        raise
+
+
 if __name__ == "__main__":
-    main()
+    run()

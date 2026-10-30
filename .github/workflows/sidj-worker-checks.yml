@@ -1,0 +1,59 @@
+name: Check SiDj Cloudflare Worker
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'cloudflare/sidj-worker/**'
+      - 'automation/sidj*'
+      - 'automation/*sidj*'
+      - '.github/workflows/sidj-worker-checks.yml'
+  pull_request:
+    paths:
+      - 'cloudflare/sidj-worker/**'
+      - 'automation/*sidj*'
+      - '.github/workflows/sidj-worker-checks.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    env:
+      WRANGLER_SEND_METRICS: 'false'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: cloudflare/sidj-worker/package-lock.json
+      - name: Scan public files for recognizable credentials
+        run: python3 automation/check_sidj_secrets.py
+      - name: Verify polling fallback and activation race
+        run: python3 -m unittest discover -s automation -p 'test_sidj_telegram.py' -v
+      - name: Verify committed download checksums
+        run: |
+          python3 - <<'PY'
+          import json, re, subprocess
+          from pathlib import Path
+          ref = json.loads(Path('automation/sidj_projects.json').read_text())['files_ref']
+          if not re.fullmatch(r'[0-9a-f]{40}', ref):
+              raise SystemExit('Invalid files_ref')
+          subprocess.run(['git', 'fetch', '--depth=1', 'origin', ref], check=True)
+          PY
+          python3 automation/update_sidj_catalog.py --check
+      - name: Install pinned Worker tooling
+        working-directory: cloudflare/sidj-worker
+        run: npm ci --ignore-scripts
+      - name: Check JavaScript, behavior and deployment bundle
+        working-directory: cloudflare/sidj-worker
+        run: |
+          npm run check
+          npm test
+          npm run deploy:check

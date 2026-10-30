@@ -13,7 +13,9 @@
         {
           "id": "html",
           "label": "HTML для браузера",
-          "path": "apps/BS_Excel_Toolkit_1_0_0.html"
+          "path": "apps/BS_Excel_Toolkit_1_0_0.html",
+          "sha256": "8c6759a60c0becd42d77e0b559069f314f4cce5bc4a684655b01ffe9123f7171",
+          "size_bytes": 133736
         }
       ]
     },
@@ -29,7 +31,9 @@
         {
           "id": "script",
           "label": "Скрипт Tampermonkey",
-          "path": "downloads/BS-tech-Limits-AI-v3.9.user.js"
+          "path": "downloads/BS-tech-Limits-AI-v3.9.user.js",
+          "sha256": "7addfda6e48d7cda295e3eb442f79cf1f92df0a7486baedb1d5b93427672e949",
+          "size_bytes": 19717
         }
       ]
     },
@@ -45,7 +49,9 @@
         {
           "id": "win",
           "label": "Windows EXE",
-          "path": "downloads/BS_Codex_Installer_1_0_0.exe"
+          "path": "downloads/BS_Codex_Installer_1_0_0.exe",
+          "sha256": "c59ea53da225b8e760a76f180ea05ddb065ac865d3ceba6d76cd61c448619b96",
+          "size_bytes": 550651
         }
       ]
     },
@@ -64,29 +70,40 @@
         {
           "id": "win",
           "label": "Windows x64 ZIP",
-          "path": "downloads/BS_Reserve_0.2.0_build20261030.5_win64.zip"
+          "path": "downloads/BS_Reserve_0.2.0_build20261030.5_win64.zip",
+          "sha256": "5fd4213d340c8947042f12f5c8734ab65f413477d66acf0c34c03a4eaa789746",
+          "size_bytes": 18397578
         },
         {
           "id": "mac_arm",
           "label": "macOS Apple Silicon ZIP",
-          "path": "downloads/BS_Reserve_0.2.0_build20261030.5_macos_arm64.zip"
+          "path": "downloads/BS_Reserve_0.2.0_build20261030.5_macos_arm64.zip",
+          "sha256": "050e13d0b68ad05c4b02de3c09daa632f141184de2ed9cd2f7635d10ed09b1be",
+          "size_bytes": 17252854
         },
         {
           "id": "mac_intel",
           "label": "macOS Intel ZIP",
-          "path": "downloads/BS_Reserve_0.2.0_build20261030.5_macos_x64.zip"
+          "path": "downloads/BS_Reserve_0.2.0_build20261030.5_macos_x64.zip",
+          "sha256": "67b694ed70e2c7d88ceb8cb5aaf1b2b5269f439e4ba185bae6cc431dce812074",
+          "size_bytes": 18352944
         },
         {
           "id": "linux_x64",
           "label": "Linux x64 tar.gz",
-          "path": "downloads/BS_Reserve_0.2.0_build20261030.5_linux_x64.tar.gz"
+          "path": "downloads/BS_Reserve_0.2.0_build20261030.5_linux_x64.tar.gz",
+          "sha256": "24caf997c05c3e3cb7dfee0a5f9ad52df989c6bdb4d9e43a69ed3b8976cd061a",
+          "size_bytes": 17981798
         },
         {
           "id": "linux_arm",
           "label": "Linux ARM64 tar.gz",
-          "path": "downloads/BS_Reserve_0.2.0_build20261030.5_linux_arm64.tar.gz"
+          "path": "downloads/BS_Reserve_0.2.0_build20261030.5_linux_arm64.tar.gz",
+          "sha256": "c79a3759d2c7055ea3943499cf6082cc216e8ce6fa2ab94adbfe97a5e2c9cc9a",
+          "size_bytes": 16590997
         }
       ]
     }
-  ]
+  ],
+  "files_ref": "db9e00c82bbcea68a03502c24a79e7eda27fdd79"
 }
