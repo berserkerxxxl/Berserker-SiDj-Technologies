@@ -77,12 +77,30 @@ def safe_text(value: object, maximum: int) -> str:
 
 
 def parse_analysis(raw: str) -> dict:
+    """Accept JSON and common harmless wrappers, but never invent missing fields."""
     if not isinstance(raw, str) or not raw.strip():
         raise ValueError("Empty AI analysis")
+    text = raw.strip()
+    # Some free routes return a Markdown JSON code block despite json_object mode.
+    fenced = re.fullmatch(r"```(?:json)?[ \\t]*\\r?\\n(.*?)\\r?\\n```",
+                          text, flags=re.IGNORECASE | re.DOTALL)
+    if fenced:
+        text = fenced.group(1).strip()
     try:
-        data = json.loads(raw)
+        data = json.loads(text)
     except json.JSONDecodeError:
-        raise ValueError("Invalid JSON from free AI") from None
+        # An otherwise valid JSON object may be preceded or followed by a
+        # short explanation. Accept only one complete bounded object.
+        beginning = text.find("{")
+        if beginning < 0 or beginning > 240:
+            raise ValueError("Invalid JSON from free AI") from None
+        try:
+            data, end = json.JSONDecoder().raw_decode(text[beginning:])
+        except json.JSONDecodeError:
+            raise ValueError("Incomplete or invalid JSON from free AI") from None
+        trailing = text[beginning + end:].strip()
+        if len(trailing) > 240 or "{" in trailing or "}" in trailing:
+            raise ValueError("Ambiguous JSON from free AI")
     if not isinstance(data, dict):
         raise ValueError("AI response must be a JSON object")
     for field, length in (("finding", 240), ("recommendation", 420)):
@@ -122,7 +140,7 @@ def free_review(source: str, path: str, project: str, key: str) -> tuple[dict, s
             {"role": "user", "content": "Project: " + project + "\nFile: " + path
              + "\nPartial source for read-only review:\n" + source},
         ],
-        "max_tokens": 1400, "temperature": 0.1, "stream": False,
+        "max_tokens": 3600, "temperature": 0.1, "stream": False,
     }).encode("utf-8")
     req = Request(ENDPOINT, data=payload, method="POST", headers={
         "Authorization": "Bearer " + key,
@@ -148,7 +166,14 @@ def free_review(source: str, path: str, project: str, key: str) -> tuple[dict, s
         raise RuntimeError("Free model refused the request")
     choices = result.get("choices") or []
     answer = choices[0].get("message", {}) if choices and isinstance(choices[0], dict) else {}
-    analysis = parse_analysis(answer.get("content") if isinstance(answer, dict) else None)
+    finish = choices[0].get("finish_reason") if choices and isinstance(choices[0], dict) else None
+    try:
+        analysis = parse_analysis(answer.get("content") if isinstance(answer, dict) else None)
+    except ValueError as error:
+        # Do not log or send untrusted AI content; report a bounded diagnostic.
+        if finish == "length":
+            raise ValueError("Free AI output truncated at token limit; no review result") from None
+        raise error
     model = result.get("model", FREE_MODELS[0])
     if model not in FREE_MODELS:
         model = "free route (model identifier unavailable)"
