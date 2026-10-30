@@ -168,6 +168,9 @@ func (s *Store) migrationToDirectory(directory string) (any, error) {
 		err = addBytes("index.html", []byte(strings.ReplaceAll(offlineHTML, "__ARCHIVE_DATA__", string(data))))
 	}
 	if err == nil {
+		err = addBytes("favicon.ico", faviconICO)
+	}
+	if err == nil {
 		err = addBytes("START_HERE_RU.txt", []byte("Это НЕЗАШИФРОВАННЫЙ пакет переноса B/S Reserve.\nОткройте index.html: чтение и поиск работают без сети.\nVault содержит исходные данные, все версии и записи памяти.\nfiles содержит оригиналы с восстановленными именами.\nДля нового ChatGPT выбирайте нужные файлы и инструкции; старый аккаунт не воссоздаётся.\nДля локальной LLM используйте JSON/Markdown и оригиналы документов.\n"+recoveryText))
 	}
 	if err == nil {

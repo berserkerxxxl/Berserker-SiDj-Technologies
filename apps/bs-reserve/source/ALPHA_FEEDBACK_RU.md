@@ -1,6 +1,6 @@
-# B/S Reserve · 0.1.0-alpha.8
+# B/S Reserve · 0.1.0-alpha.9
 
-**Открытая альфа-версия для тестирования. Билд 20261030.3.**
+**Открытая альфа-версия для тестирования. Билд 20261030.4.**
 
 Экспериментальный выпуск для Windows x64, macOS Apple Silicon/Intel и Linux x64/ARM64. Нужна проверка первого запуска на пользовательских компьютерах, открытия приложения macOS через Finder/Gatekeeper, Планировщика Windows и работы с реальными выгрузками. На macOS/Linux шифрованные копии запускаются вручную с паролем; хранение ключа и встроенное расписание пока недоступны.
 
@@ -27,7 +27,7 @@
 
 GitHub Issues:
 
-https://github.com/berserkerxxxl/Berserker-SiDj-Technologies/issues/new?title=B%2FS%20Reserve%200.1.0-alpha.8%3A%20
+https://github.com/berserkerxxxl/Berserker-SiDj-Technologies/issues/new?title=B%2FS%20Reserve%200.1.0-alpha.9%3A%20
 
 Другие контакты лаборатории:
 
