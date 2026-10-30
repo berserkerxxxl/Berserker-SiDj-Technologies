@@ -1,0 +1,67 @@
+{
+  "version": "0.2.0-beta.1",
+  "build": "20261030.5",
+  "date": "2026-10-30",
+  "targets": [
+    {
+      "target": "windows_amd64",
+      "os": "windows",
+      "arch": "amd64",
+      "label": "Windows x64",
+      "requirements": "Windows 11 x64",
+      "name": "BS_Reserve_0.2.0-beta.1_build20261030.5_win64.zip",
+      "bytes": 18400424,
+      "sha256": "576122321be65459546ac8d7f9aa40ff7acfbabaac60aba2864bb9f332df34de",
+      "app_sha256": "b8fea1f21712fd857f9568fb5023a789f8326c821aae0888dfad00b0317e23a8",
+      "restic_sha256": "b0dd1fd21eea5d8fe1325f55f7118213c21f36de8a261e04c0624a5ab9fd7830"
+    },
+    {
+      "target": "darwin_arm64",
+      "os": "darwin",
+      "arch": "arm64",
+      "label": "macOS · Apple Silicon",
+      "requirements": "macOS 13+ · Apple M-серии",
+      "name": "BS_Reserve_0.2.0-beta.1_build20261030.5_macos_arm64.zip",
+      "bytes": 17255741,
+      "sha256": "55535ec6ad0f295c673ea975e36bf53bd9d4a8f68c8779453f95030d96808940",
+      "app_sha256": "f847f1a4a4db70ef140c833214aae90b9c1aba291bed608cbe20ca4d32fd4aaa",
+      "restic_sha256": "06582569ff2f10e1935a6f12187c76db02f0bae99e6e54098f2cdc374766d768"
+    },
+    {
+      "target": "darwin_amd64",
+      "os": "darwin",
+      "arch": "amd64",
+      "label": "macOS · Intel",
+      "requirements": "macOS 13+ · Intel x64",
+      "name": "BS_Reserve_0.2.0-beta.1_build20261030.5_macos_x64.zip",
+      "bytes": 18355905,
+      "sha256": "d9704ee58091f264f175e0125a2eff7d17a2953567e23cb0bf1e845821900264",
+      "app_sha256": "578a312bc76cc2e967c29ae1e6701bf1a4d7947f2b7142a40a1f7dedbf6e69a7",
+      "restic_sha256": "b2b553b402b9971b0c3f673d880397a421526f55a08f21fe5b82b5dd9e049a08"
+    },
+    {
+      "target": "linux_amd64",
+      "os": "linux",
+      "arch": "amd64",
+      "label": "Linux x64",
+      "requirements": "Современный Linux · x86_64",
+      "name": "BS_Reserve_0.2.0-beta.1_build20261030.5_linux_x64.tar.gz",
+      "bytes": 17982490,
+      "sha256": "f07d70cbd434dc045c1883d933041ad9f600093d15c2a7c2169049893e60528f",
+      "app_sha256": "31fc9b8906e96312fd4ff73f7c31ef93ca79e9d5afddba026368e172159f221e",
+      "restic_sha256": "20d4142678d0d95ec11a4759def1b73fd9190abc9ca19e4b62d067c0b387e639"
+    },
+    {
+      "target": "linux_arm64",
+      "os": "linux",
+      "arch": "arm64",
+      "label": "Linux ARM64",
+      "requirements": "Современный Linux · aarch64",
+      "name": "BS_Reserve_0.2.0-beta.1_build20261030.5_linux_arm64.tar.gz",
+      "bytes": 16591340,
+      "sha256": "a4779a428110caecb537901d2a63c1e6e2868ffa3c79c6cad989ff06032d0466",
+      "app_sha256": "9eca6a233c8636154851622bf75893879f096033eaf6c13dc61c024c5a9c4111",
+      "restic_sha256": "2fb45ac6f9071b6f20eb883953a188f9e7c7cb6bbe43c67a2e47ada4e85ee7f0"
+    }
+  ]
+}

@@ -87,7 +87,7 @@ func scheduleScript(exe, root, at string, atLogon bool) (string, error) {
 		"$a=New-ScheduledTaskAction -Execute " + psQuote(exe) + " -Argument " + psQuote(arguments) + "; " +
 		triggers +
 		"$p=New-ScheduledTaskPrincipal -UserId $u -LogonType Interactive -RunLevel Limited; " +
-		"$s=New-ScheduledTaskSettingsSet -StartWhenAvailable -MultipleInstances IgnoreNew; " +
+		"$s=New-ScheduledTaskSettingsSet -StartWhenAvailable -MultipleInstances IgnoreNew -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries; " +
 		"Register-ScheduledTask -TaskName " + psQuote(name) + " -Action $a -Trigger $t -Principal $p -Settings $s -Description 'B/S Reserve: local import and encrypted backup' -Force | Out-Null"
 	return script, nil
 }
@@ -104,6 +104,18 @@ func installSchedule(exe, root, at string, atLogon bool) error {
 	return nil
 }
 
+func removeSchedule(root string) error {
+	name := scheduleTaskName(root)
+	script := "$ErrorActionPreference='Stop'; " +
+		"$t=Get-ScheduledTask -TaskName " + psQuote(name) + " -ErrorAction SilentlyContinue; " +
+		"if($null -ne $t){Unregister-ScheduledTask -TaskName " + psQuote(name) + " -Confirm:$false}"
+	cmd := exec.Command("powershell.exe", powerShellArgs(script)...)
+	hideCommand(cmd)
+	if _, err := cmd.CombinedOutput(); err != nil {
+		return errors.New("не удалось отключить задачу Windows; проверьте права в Планировщике")
+	}
+	return nil
+}
 func folderPickerAvailable() bool { return true }
 func folderPickerScript(initial string) string {
 	return "$ErrorActionPreference='Stop'; Add-Type -AssemblyName System.Windows.Forms; " +
