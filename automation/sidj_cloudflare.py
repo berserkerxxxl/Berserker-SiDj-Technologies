@@ -78,6 +78,7 @@ def request(url, *, headers=None, payload=None, expected_status=200):
         host = urlsplit(url).hostname or ''
         service = 'Cloudflare API' if host == 'api.cloudflare.com' else 'Worker' if host.endswith('.workers.dev') else 'Сервис'
         codes = []
+        upstream = ''
         if host == 'api.cloudflare.com':
             # Error messages can echo request data. Log only bounded numeric
             # Cloudflare error codes, never the response text or credentials.
@@ -94,10 +95,17 @@ def request(url, *, headers=None, payload=None, expected_status=200):
             try:
                 raw = exc.read(16 * 1024 + 1).decode('utf-8', 'replace')
                 codes = re.findall(r'\berror code:\s*(\d{3,6})\b', raw, flags=re.IGNORECASE)[:8]
+                match = re.fullmatch(r'Telegram временно не принял запрос \(HTTP (\d{3})\)\.', raw)
+                if match:
+                    upstream = '; Telegram HTTP ' + match[1]
+                elif raw in ('Telegram отклонил запрос. Повтори команду.',
+                             'Некорректный ответ Telegram.',
+                             'Сервис временно недоступен. Повтори команду.'):
+                    upstream = '; ' + raw
             except (OSError, AttributeError):
                 pass
         detail = ' (коды Cloudflare: ' + ', '.join(codes) + ')' if codes else ''
-        raise RuntimeError(service + ' отклонил операцию: HTTP ' + str(exc.code) + detail) from None
+        raise RuntimeError(service + ' отклонил операцию: HTTP ' + str(exc.code) + detail + upstream) from None
     except (URLError, TimeoutError, UnicodeError):
         raise RuntimeError('Нет подтверждения операции. Проверь состояние перед повтором.') from None
 
@@ -149,13 +157,17 @@ def operate(action, values):
     else:
         # The workflow shares a concurrency group with the old poller, so its
         # running job finishes before activation/rollback begins.
+        print('Проверка публичного адреса Worker.', flush=True)
         request(url)
         if action == 'activate':
             # Prove that unsigned incoming updates are rejected before enabling
             # delivery. No owner command is sent by this negative test.
+            print('Проверка отказа для неподписанного запроса.', flush=True)
             request(url + 'telegram', payload={'update_id': 0}, expected_status=403)
+            print('Проверка настоящего Telegram-бота и личного чата.', flush=True)
             request(url + 'admin/status', headers={
                 'Authorization': 'Bearer ' + values['SIDJ_ADMIN_TOKEN']}, payload={'confirm': 'status'})
+        print('Операция Worker: ' + action + '.', flush=True)
         text = request(url + 'admin/' + action, headers={
             'Authorization': 'Bearer ' + values['SIDJ_ADMIN_TOKEN']}, payload={'confirm': action})
         for value in sorted(values.values(), key=len, reverse=True):

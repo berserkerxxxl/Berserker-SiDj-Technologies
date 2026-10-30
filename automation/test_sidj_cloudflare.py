@@ -94,6 +94,18 @@ class CloudflareOperationsTests(unittest.TestCase):
         self.assertNotIn(values['SIDJ_ADMIN_TOKEN'], str(caught.exception))
         self.assertEqual(output.getvalue(), '')
 
+    def test_worker_telegram_error_is_reported_without_echoing_arbitrary_text(self):
+        url = 'https://bs-tech-sidj.example.workers.dev/admin/status'
+        for body, expected in [('Telegram временно не принял запрос (HTTP 401).', 'Telegram HTTP 401'),
+                               (configuration()['SIDJ_TELEGRAM_BOT_TOKEN'], None)]:
+            error = HTTPError(url, 502, 'Bad Gateway', {}, io.BytesIO(body.encode()))
+            with patch.object(ops.HTTP, 'open', side_effect=error):
+                with self.assertRaises(RuntimeError) as caught:
+                    ops.request(url)
+            self.assertNotIn(configuration()['SIDJ_TELEGRAM_BOT_TOKEN'], str(caught.exception))
+            if expected:
+                self.assertIn(expected, str(caught.exception))
+
     def test_cloudflare_failure_identifies_service_and_only_numeric_error_codes(self):
         secret = configuration()['CLOUDFLARE_API_TOKEN']
         body = json.dumps({'errors': [{'code': 10000, 'message': secret},

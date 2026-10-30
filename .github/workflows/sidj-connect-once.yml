@@ -19,7 +19,7 @@ jobs:
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
-          ref: edccc6a610313514ee2f77649264dcfb5cfab6fe
+          ref: ${{ github.sha }}
           persist-credentials: false
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
@@ -50,7 +50,7 @@ jobs:
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
-          ref: edccc6a610313514ee2f77649264dcfb5cfab6fe
+          ref: ${{ github.sha }}
           persist-credentials: false
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
@@ -70,5 +70,18 @@ jobs:
           SIDJ_TELEGRAM_CHAT_ID: ${{ secrets.SIDJ_TELEGRAM_CHAT_ID }}
           SIDJ_ADMIN_TOKEN: ${{ secrets.SIDJ_ADMIN_TOKEN }}
         run: |
+          PYTHONPATH=automation python3 - <<'PY'
+          import json, os
+          import sidj_cloudflare as ops
+          values = ops.settings(os.environ)
+          for method, payload in [('getMe', {}), ('getChat', {'chat_id': values['SIDJ_TELEGRAM_CHAT_ID']}), ('getWebhookInfo', {})]:
+              try:
+                  data = json.loads(ops.request('https://api.telegram.org/bot' + values['SIDJ_TELEGRAM_BOT_TOKEN'] + '/' + method, payload=payload))
+              except RuntimeError as error:
+                  raise SystemExit('Telegram ' + method + ': ' + str(error)) from None
+              if not data.get('ok'):
+                  raise SystemExit('Telegram ' + method + ': запрос отклонён.')
+              print('Telegram ' + method + ': OK', flush=True)
+          PY
           python3 automation/sidj_cloudflare.py "$SIDJ_OPERATION"
           python3 automation/sidj_cloudflare.py status
