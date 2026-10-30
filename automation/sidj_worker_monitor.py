@@ -101,6 +101,9 @@ def load():
 def advance(track, observation, now):
     """Two matching observations separated by >=5 minutes, no repeated alerts."""
     if observation is None or observation == 'unknown':
+        # An uncertain probe breaks a streak; it cannot confirm an incident.
+        track.pop('seen', None)
+        track['count'] = 0
         return None
     same = (track.get('seen') == observation and
             0 <= now - track.get('last_at', 0) <= MAX_GAP)
