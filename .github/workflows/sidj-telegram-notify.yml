@@ -18,19 +18,21 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
   notify:
-    if: \${{ github.event_name != 'workflow_run' || github.event.workflow_run.head_repository.full_name == github.repository }}
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.head_repository.full_name == github.repository }}
     runs-on: ubuntu-24.04
     timeout-minutes: 3
     steps:
       - name: Notify SiDj in Russian
         env:
-          SIDJ_BOT_TOKEN: \${{ secrets.SIDJ_TELEGRAM_BOT_TOKEN }}
-          SIDJ_CHAT_ID: \${{ secrets.SIDJ_TELEGRAM_CHAT_ID }}
-          GH_EVENT_NAME: \${{ github.event_name }}
-          GH_EVENT_PATH: \${{ github.event_path }}
+          SIDJ_BOT_TOKEN: ${{ secrets.SIDJ_TELEGRAM_BOT_TOKEN }}
+          SIDJ_CHAT_ID: ${{ secrets.SIDJ_TELEGRAM_CHAT_ID }}
+          GH_EVENT_NAME: ${{ github.event_name }}
+          GH_EVENT_PATH: ${{ github.event_path }}
+          GH_API_TOKEN: ${{ github.token }}
         run: |
           python3 - <<'PY'
           import json
@@ -49,11 +51,15 @@ jobs:
               event = json.load(stream)
           event_name = os.environ.get("GH_EVENT_NAME", "")
           now = datetime.now(ZoneInfo("Europe/Moscow")).strftime("%d.%m.%Y %H:%M")
+          markup = None
           if event_name == "workflow_dispatch":
               message = "🤖 СиДжи | B/S tech\n✅ Тестовое уведомление работает.\n🕒 Москва: " + now
           elif event_name == "workflow_run":
               run = event.get("workflow_run") or {}
               conclusion = run.get("conclusion", "unknown")
+              branch = run.get("head_branch", "")
+              version = " · 0.2.0" if "release-0.2.0" in branch else ""
+              title = "💾 B/S Reserve" + version
               state = {
                   "success": "✅ Сборка завершена успешно",
                   "failure": "❌ Ошибка сборки",
@@ -62,11 +68,53 @@ jobs:
               }.get(conclusion, "ℹ️ Итог сборки: " + str(conclusion))
               message = (
                   "🤖 СиДжи | B/S tech\n"
-                  "💾 B/S Reserve\n" + state + "\n"
-                  + "Ветка: " + str(run.get("head_branch", "неизвестно")) + "\n"
-                  + "🕒 Москва: " + now + "\n"
-                  + "Журнал: " + str(run.get("html_url", "ссылка недоступна"))
+                  + title + "\n"
+                  + state + "\n"
+                  + "🕒 Москва: " + now
               )
+              if conclusion in ("failure", "timed_out"):
+                  reason = ("Превышено время выполнения."
+                            if conclusion == "timed_out"
+                            else "Один из этапов сборки завершился ошибкой.")
+                  run_id = run.get("id")
+                  api_token = os.environ.get("GH_API_TOKEN", "").strip()
+                  repo = os.environ.get("GITHUB_REPOSITORY", "")
+                  if conclusion == "failure" and isinstance(run_id, int) and api_token:
+                      api_url = (
+                          "https://api.github.com/repos/" + repo
+                          + f"/actions/runs/{run_id}/jobs?per_page=100"
+                      )
+                      request = Request(api_url, headers={
+                          "Authorization": "Bearer " + api_token,
+                          "Accept": "application/vnd.github+json",
+                          "User-Agent": "B-S-tech-SiDj-Bot",
+                      })
+                      try:
+                          with urlopen(request, timeout=15) as response:
+                              jobs = json.load(response).get("jobs", [])
+                          for job in jobs:
+                              if job.get("conclusion") in ("failure", "timed_out"):
+                                  step = next((
+                                      s.get("name", "") for s in job.get("steps", [])
+                                      if s.get("conclusion") in ("failure", "timed_out")
+                                  ), "")
+                                  reason = "Не прошёл этап: " + str(job.get("name", "проверка"))
+                                  if step:
+                                      reason += " → " + step
+                                  break
+                      except (HTTPError, URLError, ValueError, TimeoutError):
+                          pass
+                  message += "\nПричина: " + reason
+                  run_url = run.get("html_url", "")
+                  expected = (
+                      "https://github.com/" + repo + "/actions/runs/"
+                      + str(run_id)
+                  )
+                  if run_url == expected:
+                      markup = {"inline_keyboard": [[{
+                          "text": "🔍 Посмотреть ошибку",
+                          "url": run_url
+                      }]]}
           else:
               changed = set()
               for item in event.get("commits", []):
@@ -85,16 +133,15 @@ jobs:
                   + "🆕 Обновлены файлы опубликованных программ:\n"
                   + names + "\n"
                   + "🕒 Москва: " + now + "\n"
-                  + "Изменения: " + str(event.get("compare", "https://github.com/berserkerxxxl/Berserker-SiDj-Technologies"))
+                  + "Обновление опубликовано в репозитории."
               )
 
+          payload = {"chat_id": chat_id, "text": message, "disable_web_page_preview": True}
+          if markup:
+              payload["reply_markup"] = markup
           request = Request(
               "https://api.telegram.org/bot" + token + "/sendMessage",
-              data=json.dumps({
-                  "chat_id": chat_id,
-                  "text": message,
-                  "disable_web_page_preview": True,
-              }, ensure_ascii=False).encode("utf-8"),
+              data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
               headers={"Content-Type": "application/json"},
               method="POST",
           )
