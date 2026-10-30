@@ -44,8 +44,15 @@ export async function hashHex(bytes) {
   return Array.from(new Uint8Array(digest), b => b.toString(16).padStart(2, "0")).join("");
 }
 
+// Cache only the derived digest per isolate; a changed token invalidates it.
+let webhookToken, webhookDigest;
 export async function webhookSecret(env) {
-  return hashHex(new TextEncoder().encode("B/S-SiDj-webhook:" + env.SIDJ_TELEGRAM_BOT_TOKEN));
+  const token = env.SIDJ_TELEGRAM_BOT_TOKEN;
+  if (webhookToken !== token) {
+    webhookToken = token;
+    webhookDigest = hashHex(new TextEncoder().encode("B/S-SiDj-webhook:" + token));
+  }
+  return webhookDigest;
 }
 
 export async function equalSecret(actual, expected) {
