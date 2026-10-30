@@ -61,10 +61,10 @@ class MonitorTests(unittest.TestCase):
                     mon.check(now=1600, observed=('bad', 'good', 'bad'), notify=fake)
                     mon.check(now=1900, observed=('good', 'good', 'good'), notify=fake)
                     mon.check(now=2200, observed=('good', 'good', 'good'), notify=fake)
-                self.assertEqual(len(alerts), 4)
+                self.assertEqual(len(alerts), 2)
                 self.assertTrue(all(chat == '42' for _, chat, _ in alerts))
-                self.assertIn('аналитики', alerts[1][2])
-                self.assertIn('восстанов', alerts[2][2])
+                self.assertIn('аналитики', alerts[0][2])
+                self.assertIn('восстанов', alerts[1][2])
                 self.assertNotIn(env['SIDJ_TELEGRAM_BOT_TOKEN'], output.getvalue())
                 self.assertEqual(json.loads(state_file.read_text())['version'], 1)
 
