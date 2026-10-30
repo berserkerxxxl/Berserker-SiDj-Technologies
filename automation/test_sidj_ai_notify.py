@@ -74,6 +74,7 @@ class AINotifyTests(unittest.TestCase):
     def test_user_message_and_trusted_link(self):
         msg, url, button = notify.build_message(proposal(), "workflow_run", ai_event()["workflow_run"])
         self.assertIn("Умная очистка кэша", msg)
+        self.assertIn("Программа: B/S SiDj — Telegram-бот", msg)
         self.assertIn("одобрение", msg)
         self.assertEqual(url, proposal()["html_url"])
         self.assertIn("предложение", button.lower())
@@ -83,6 +84,7 @@ class AINotifyTests(unittest.TestCase):
         event["conclusion"] = "failure"
         msg, url, _ = notify.build_message(None, "workflow_run", event)
         self.assertIn("ошибкой", msg)
+        self.assertIn("Программа: B/S SiDj — Telegram-бот", msg)
         self.assertEqual(url, notify.run_url(event))
 
     def test_manual_test_with_existing_ai_pr(self):
