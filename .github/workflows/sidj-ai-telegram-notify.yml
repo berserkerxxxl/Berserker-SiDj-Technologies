@@ -1,0 +1,40 @@
+name: B/S tech - AI proposals to Telegram
+
+on:
+  workflow_run:
+    workflows:
+      - B/S tech - free AI improvement proposals
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  pull-requests: read
+
+jobs:
+  notify:
+    if: >-
+      github.repository == 'berserkerxxxl/Berserker-SiDj-Technologies' &&
+      (github.event_name == 'workflow_dispatch' ||
+       (github.event.workflow_run.head_repository.full_name == github.repository &&
+        github.event.workflow_run.head_branch == 'main'))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    steps:
+      - name: Checkout only trusted main with no persisted credentials
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: main
+          persist-credentials: false
+      - name: Verify offline AI notifier behavior
+        run: python3 -m unittest discover -s automation -p 'test_sidj_ai_notify.py' -v
+      - name: Send private Russian summary to B/S SiDj Telegram
+        env:
+          GH_EVENT_NAME: ${{ github.event_name }}
+          GH_EVENT_PATH: ${{ github.event_path }}
+          GH_TOKEN: ${{ github.token }}
+          SIDJ_BOT_TOKEN: ${{ secrets.SIDJ_TELEGRAM_BOT_TOKEN }}
+          SIDJ_CHAT_ID: ${{ secrets.SIDJ_TELEGRAM_CHAT_ID }}
+        run: python3 automation/sidj_ai_notify.py
