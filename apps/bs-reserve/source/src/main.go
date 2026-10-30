@@ -115,7 +115,9 @@ func respond(w http.ResponseWriter, v any) {
 	_ = json.NewEncoder(w).Encode(v)
 }
 func (a *App) fail(w http.ResponseWriter, status int, err error) {
-	a.log("request", "error", recordError(err))
+	if status != http.StatusForbidden {
+		a.log("request", "error", recordError(err))
+	}
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(status)
 	respond(w, map[string]any{"Error": userError(err)})

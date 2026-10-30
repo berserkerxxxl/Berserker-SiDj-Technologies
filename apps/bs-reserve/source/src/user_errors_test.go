@@ -63,6 +63,16 @@ func TestResticExitCodesInRussian(t *testing.T) {
 func TestRussianJobAndAPIPreserveDiagnostics(t *testing.T) {
 	s := newTestStore(t)
 	a := &App{store: s, token: "synthetic-error-token"}
+	request := httptest.NewRequest("GET", "http://127.0.0.1:1234/api/state", nil)
+	denied := httptest.NewRecorder()
+	a.handler().ServeHTTP(denied, request)
+	if denied.Code != 403 {
+		t.Fatal("unauthenticated API access allowed")
+	}
+	if _, err := os.Stat(filepath.Join(s.Root, "logs", "operations.jsonl")); !os.IsNotExist(err) {
+		t.Fatal("unauthenticated request wrote to the archive journal", err)
+	}
+
 	raw := &os.PathError{Op: "write", Path: filepath.Join(s.Vault, "objects", ".incoming-test"), Err: errors.New("There is not enough space on the disk.")}
 	if err := a.startJob("folder", func() (any, error) { return nil, raw }); err != nil {
 		t.Fatal(err)
