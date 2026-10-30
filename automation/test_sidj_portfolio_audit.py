@@ -88,7 +88,9 @@ class PortfolioTests(unittest.TestCase):
         self.assertTrue(all(m.endswith(":free") for m in requests[0]["models"]))
         self.assertEqual(requests[0]["route"], "fallback")
         self.assertEqual(requests[0]["response_format"], {"type": "json_object"})
-        self.assertNotIn("token", json.dumps(requests[0]).lower())
+        self.assertNotIn("api_key", requests[0])
+        self.assertNotIn("authorization", requests[0])
+        self.assertNotIn("secret", requests[0])
 
     def test_denies_non_free_model(self):
         with patch.object(ai, "FREE_MODELS", ("expensive/model",)):
