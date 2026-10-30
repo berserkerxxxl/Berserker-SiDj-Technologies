@@ -78,6 +78,22 @@ test("outbound redirects are rejected without forwarding the authorization heade
   assert.equal(cancelled, true);
 });
 
+test("cached webhook digest changes after token rotation and rejects stale headers", async () => {
+  const old = await webhookSecret(env);
+  assert.equal(await webhookSecret(env), old);
+  const rotated = { ...env, SIDJ_TELEGRAM_BOT_TOKEN: "12345:" + "y".repeat(35) };
+  const replacement = await webhookSecret(rotated);
+  assert.notEqual(replacement, old);
+  assert.equal(await webhookSecret(env), old);
+  const f = await fixture();
+  assert.equal((await f.send(message("/start"), {
+    "X-Telegram-Bot-Api-Secret-Token": old,
+  }, rotated)).status, 403);
+  assert.equal((await f.send(message("/start"), {
+    "X-Telegram-Bot-Api-Secret-Token": replacement,
+  }, rotated)).status, 200);
+});
+
 test("public GET activation cannot change Telegram configuration", async () => {
   const f = await fixture();
   for (const path of ["/activate", "/admin/activate", "/admin/rollback"]) {
