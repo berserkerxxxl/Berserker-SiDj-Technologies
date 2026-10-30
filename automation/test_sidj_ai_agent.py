@@ -8,7 +8,7 @@ import unittest
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).parent))
-from sidj_ai_agent import MODEL, TARGET, apply_proposal, parse_reply, free_completion
+from sidj_ai_agent import MODEL, FREE_MODELS, TARGET, apply_proposal, parse_reply, free_completion
 
 
 class AgentTests(unittest.TestCase):
@@ -59,7 +59,9 @@ class AgentTests(unittest.TestCase):
             parse_reply("  ")
 
     def test_only_pinned_free_coder(self):
-        self.assertEqual(MODEL, "qwen/qwen3-coder:free")
+        self.assertEqual(MODEL, "recursive/flint-v1.0:free")
+        self.assertEqual(FREE_MODELS, ("recursive/flint-v1.0:free", "nvidia/nemotron-3-ultra-550b-a55b:free"))
+        self.assertTrue(all(x.endswith(":free") for x in FREE_MODELS))
         self.assertTrue(MODEL.endswith(":free"))
 
     def test_free_request_is_pinned_and_one_call(self):
@@ -77,12 +79,14 @@ class AgentTests(unittest.TestCase):
 
         with patch("sidj_ai_agent.build_opener", return_value=FakeOpener()):
             proposal, model = free_completion("const foo = true;", "dummy-key")
-        self.assertEqual(model, "qwen/qwen3-coder:free")
+        self.assertEqual(model, "recursive/flint-v1.0:free")
         self.assertEqual(proposal["edits"], [])
         self.assertEqual(len(calls), 1)
-        self.assertEqual(calls[0]["model"], "qwen/qwen3-coder:free")
+        self.assertEqual(calls[0]["model"], "recursive/flint-v1.0:free")
+        self.assertEqual(calls[0]["models"], list(FREE_MODELS))
+        self.assertEqual(calls[0]["response_format"], {"type": "json_object"})
         self.assertEqual(calls[0]["max_tokens"], 3000)
-        self.assertNotIn("models", calls[0])
+        self.assertEqual(calls[0]["route"], "fallback")
 
     def test_empty_content_response_safe_error(self):
         class FakeOpener:

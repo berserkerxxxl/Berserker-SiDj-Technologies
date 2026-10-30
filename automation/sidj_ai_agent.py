@@ -14,7 +14,8 @@ ROOT = Path(__file__).resolve().parents[1]
 TARGET = "cloudflare/sidj-worker/src/index.js"
 MAX_SOURCE = 22_000
 MAX_RESPONSE = 90_000
-MODEL = "qwen/qwen3-coder:free"  # Fixed, zero-price coding model. No paid fallback.
+FREE_MODELS = ("recursive/flint-v1.0:free", "nvidia/nemotron-3-ultra-550b-a55b:free")
+MODEL = FREE_MODELS[0]  # Explicit coding-first free-only model selection.
 ENDPOINT = "https://openrouter.ai/api/v1/chat/completions"
 
 
@@ -80,8 +81,13 @@ def free_completion(source: str, key: str) -> tuple[dict, str]:
         "Use an exact unique fragment from provided source. No markdown fences. "
         "If there is no safe improvement, return edits: []."
     )
+    if not FREE_MODELS or any(not name.endswith(":free") for name in FREE_MODELS):
+        raise RuntimeError("Only explicitly free models may be used")
     payload = json.dumps({
         "model": MODEL,
+        "models": list(FREE_MODELS),
+        "route": "fallback",
+        "response_format": {"type": "json_object"},
         "messages": [{"role": "system", "content": system},
                      {"role": "user", "content": "Current source for review:\n" + source}],
         "max_tokens": 3000,
@@ -119,7 +125,10 @@ def free_completion(source: str, key: str) -> tuple[dict, str]:
         # Only show a known enum, never log raw model output or API payload.
         reason = finish if finish in ("stop", "length", "content_filter", "tool_calls") else "unknown"
         raise RuntimeError(f"Model returned no visible JSON (finish_reason={reason}); no code changes made")
-    return parse_reply(content), MODEL
+    served = data.get("model")
+    if not isinstance(served, str) or not re.fullmatch(r"[a-zA-Z0-9._:/-]{1,100}", served):
+        served = MODEL + " (reported model unknown)"
+    return parse_reply(content), served
 
 
 def write_report(text: str) -> None:
@@ -155,7 +164,7 @@ def main() -> int:
     updated = apply_proposal(source, proposal)
     source_path.write_text(updated, encoding="utf-8")
     write_report(
-        f"## Предложение ИИ для B/S tech\n\n**Модель:** `{model}` (`{MODEL}`, только бесплатно).\n\n"
+        f"## Предложение ИИ для B/S tech\n\n**Модель:** `{model}` (только бесплатные модели).\n\n"
         f"**Улучшение:** {summary}\n\n**Причина:** {reason}\n\n"
         "Изменён только `cloudflare/sidj-worker/src/index.js`. "
         "Изменения автоматически проверяются тестами и требуют ручного одобрения. "
