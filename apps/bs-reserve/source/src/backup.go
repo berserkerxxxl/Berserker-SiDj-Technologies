@@ -23,7 +23,9 @@ type Config struct {
 	MigrationDirectory                                           string
 	ScheduleTime                                                 string
 	ScheduleAtLogon                                              bool
-	AutoBackup, WatchEnabled                                     bool
+	AutoBackup, WatchEnabled, ScheduleEnabled                      bool
+	AutoLastAttempt, AutoLastSuccess, AutoLastFailure              string
+	AutoLastError, AutoLastOutcome                                 string
 }
 type Engine struct {
 	Binary, ExpectedHash string

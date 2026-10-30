@@ -56,6 +56,9 @@ func installSchedule(exe, root, at string, atLogon bool) error {
 	return errors.New("в этой альфе встроенное расписание доступно только в Windows")
 }
 
+func removeSchedule(root string) error {
+	return errors.New("расписание доступно только в Windows")
+}
 func folderPickerAvailable() bool {
 	if runtime.GOOS == "darwin" {
 		return true

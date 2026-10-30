@@ -374,7 +374,7 @@ func (a *App) action(w http.ResponseWriter, r *http.Request) {
 			if err := installSchedule(a.exe, a.store.Root, at, req.ScheduleAtLogon); err != nil {
 				return nil, err
 			}
-			if err := a.updateConfig(func(c *Config) { c.ScheduleTime = at; c.ScheduleAtLogon = req.ScheduleAtLogon }); err != nil {
+			if err := a.updateConfig(func(c *Config) { c.ScheduleTime = at; c.ScheduleAtLogon = req.ScheduleAtLogon; c.ScheduleEnabled = true }); err != nil {
 				return nil, fmt.Errorf("задача Windows обновлена, но настройки интерфейса не сохранены: %w", err)
 			}
 			message := "Расписание Windows: ежедневно в " + at + " по времени этого ПК"
@@ -382,6 +382,14 @@ func (a *App) action(w http.ResponseWriter, r *http.Request) {
 				message += " и при входе пользователя"
 			}
 			return message, nil
+		case "schedule-remove":
+			if err := removeSchedule(a.store.Root); err != nil {
+				return nil, err
+			}
+			if err := a.updateConfig(func(c *Config) { c.ScheduleEnabled = false }); err != nil {
+				return nil, fmt.Errorf("задача удалена, но статус не сохранён: %w", err)
+			}
+			return "Расписание Windows отключено. Данные и резервные копии сохранены.", nil
 		case "settings":
 			if req.AutoBackup {
 				if runtime.GOOS != "windows" {
@@ -392,6 +400,9 @@ func (a *App) action(w http.ResponseWriter, r *http.Request) {
 				a.mu.Unlock()
 				if _, err := rememberedPassword(a.store.Root, repo); err != nil {
 					return nil, errors.New("для автоматической зашифрованной копии сначала сохраните ключ на этом ПК")
+				}
+				if _, err := os.Stat(filepath.Join(repo, "config")); err != nil {
+					return nil, errors.New("репозиторий резервных копий недоступен; подключите диск и проверьте папку")
 				}
 			}
 			err := a.updateConfig(func(c *Config) { c.AutoBackup = req.AutoBackup; c.WatchEnabled = req.WatchEnabled })
@@ -491,7 +502,10 @@ func (a *App) action(w http.ResponseWriter, r *http.Request) {
 		a.fail(w, 409, err)
 		return
 	}
-	respond(w, map[string]any{"Started": true})
+	a.mu.Lock()
+	jobID := a.job.ID
+	a.mu.Unlock()
+	respond(w, map[string]any{"Started": true, "JobID": jobID})
 }
 func (a *App) conversation(w http.ResponseWriter, r *http.Request) {
 	id := r.URL.Query().Get("id")
@@ -727,7 +741,7 @@ func (a *App) pendingInbox() bool {
 	}
 	return false
 }
-func (a *App) runOnce() error {
+func (a *App) runOnceWork() error {
 	a.mu.Lock()
 	cfg := a.cfg
 	a.mu.Unlock()
@@ -763,6 +777,44 @@ func (a *App) runOnce() error {
 		a.log("automatic-backup", "completed", map[string]any{"Snapshot": id})
 	}
 	return nil
+}
+
+// Record the final status of unattended backup attempts, including failures.
+func (a *App) runOnce() (err error) {
+	a.mu.Lock()
+	enabled := a.cfg.AutoBackup
+	a.mu.Unlock()
+	if e := a.updateConfig(func(c *Config) { c.AutoLastAttempt = now(); c.AutoLastOutcome = "running" }); e != nil {
+		return e
+	}
+	defer func() {
+		outcome := "success"
+		message := ""
+		if err != nil {
+			outcome = "error"
+			message = userError(err)
+		} else if !enabled {
+			outcome = "scan-only"
+		}
+		if e := a.updateConfig(func(c *Config) {
+			c.AutoLastOutcome = outcome
+			if outcome == "error" {
+				c.AutoLastFailure = now()
+				c.AutoLastError = message
+			} else if outcome == "success" {
+				c.AutoLastSuccess = now()
+				c.AutoLastError = ""
+			}
+		}); e != nil && err == nil {
+			err = e
+		}
+		if err != nil {
+			a.log("automatic-run", "error", recordError(err))
+		} else {
+			a.log("automatic-run", "completed", map[string]string{"Outcome": outcome})
+		}
+	}()
+	return a.runOnceWork()
 }
 
 func (a *App) backupIfEnabled() error {
@@ -821,7 +873,34 @@ func forwardRunOnce(root string) error {
 	if response.StatusCode != 200 {
 		return errors.New("активная программа занята; операция расписания не принята")
 	}
-	return nil
+	var accepted struct { JobID string }
+	if err := json.NewDecoder(io.LimitReader(response.Body, 4096)).Decode(&accepted); err != nil || accepted.JobID == "" {
+		return errors.New("не получен номер операции по расписанию")
+	}
+	// Windows Scheduler must wait for the result, not just accepted HTTP request.
+	deadline := time.Now().Add(2 * time.Hour)
+	for time.Now().Before(deadline) {
+		req, err := http.NewRequest("GET", address+"/api/job", nil)
+		if err != nil { return err }
+		req.Header.Set("X-BS-Token", token)
+		reply, err := client.Do(req)
+		if err != nil { return fmt.Errorf("не удалось получить итог резервирования: %w", err) }
+		var job Job
+		decErr := json.NewDecoder(io.LimitReader(reply.Body, 2<<20)).Decode(&job)
+		reply.Body.Close()
+		if reply.StatusCode != http.StatusOK || decErr != nil {
+			return errors.New("не удалось получить состояние операции резервирования")
+		}
+		if job.ID != accepted.JobID {
+			return errors.New("результат запуска по расписанию не найден; откройте журнал")
+		}
+		if !job.Running {
+			if job.Error != "" { return errors.New(job.Error) }
+			return nil
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
+	return errors.New("резервное копирование по расписанию не завершилось за два часа")
 }
 
 // User data lives outside the application on Unix so replacing a release or
