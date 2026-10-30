@@ -1,11 +1,14 @@
 """Offline tests; no OpenRouter access or secrets required."""
 
+import io
+import json
 import sys
 from pathlib import Path
 import unittest
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).parent))
-from sidj_ai_agent import TARGET, apply_proposal, parse_reply
+from sidj_ai_agent import MODEL, TARGET, apply_proposal, parse_reply, free_completion
 
 
 class AgentTests(unittest.TestCase):
@@ -45,8 +48,59 @@ class AgentTests(unittest.TestCase):
 
     def test_json_only(self):
         self.assertEqual(parse_reply('{"summary":"ok"}')["summary"], "ok")
-        with self.assertRaises(ValueError):
+        self.assertEqual(parse_reply('```json\n{"summary":"ok"}\n```')["summary"], "ok")
+        with self.assertRaisesRegex(ValueError, "invalid JSON"):
             parse_reply("not json")
+
+    def test_empty_reply_has_safe_diagnostic(self):
+        with self.assertRaisesRegex(ValueError, "empty text"):
+            parse_reply("")
+        with self.assertRaisesRegex(ValueError, "empty text"):
+            parse_reply("  ")
+
+    def test_only_pinned_free_coder(self):
+        self.assertEqual(MODEL, "qwen/qwen3-coder:free")
+        self.assertTrue(MODEL.endswith(":free"))
+
+    def test_free_request_is_pinned_and_one_call(self):
+        calls = []
+
+        class FakeOpener:
+            def open(self, request, timeout):
+                calls.append(json.loads(request.data.decode("utf-8")))
+                self_requested_model = calls[-1]["model"]
+                return io.BytesIO(json.dumps({
+                    "model": self_requested_model,
+                    "choices": [{"finish_reason": "stop", "message": {"content":
+                        '{"summary":"Safe","reason":"OK","edits":[]}'}}],
+                }).encode())
+
+        with patch("sidj_ai_agent.build_opener", return_value=FakeOpener()):
+            proposal, model = free_completion("const foo = true;", "dummy-key")
+        self.assertEqual(model, "qwen/qwen3-coder:free")
+        self.assertEqual(proposal["edits"], [])
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(calls[0]["model"], "qwen/qwen3-coder:free")
+        self.assertEqual(calls[0]["max_tokens"], 3000)
+        self.assertNotIn("models", calls[0])
+
+    def test_empty_content_response_safe_error(self):
+        class FakeOpener:
+            def open(self, request, timeout):
+                return io.BytesIO(json.dumps({"choices": [{"finish_reason": "length", "message": {"content": ""}}]}).encode())
+
+        with patch("sidj_ai_agent.build_opener", return_value=FakeOpener()):
+            with self.assertRaisesRegex(RuntimeError, "finish_reason=length"):
+                free_completion("const foo = true;", "dummy-key")
+
+    def test_malformed_api_json_safe_error(self):
+        class FakeOpener:
+            def open(self, request, timeout):
+                return io.BytesIO(b"not-json")
+
+        with patch("sidj_ai_agent.build_opener", return_value=FakeOpener()):
+            with self.assertRaisesRegex(RuntimeError, "invalid HTTP JSON"):
+                free_completion("const foo = true;", "dummy-key")
 
 
 if __name__ == "__main__":

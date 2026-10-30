@@ -14,7 +14,7 @@ ROOT = Path(__file__).resolve().parents[1]
 TARGET = "cloudflare/sidj-worker/src/index.js"
 MAX_SOURCE = 22_000
 MAX_RESPONSE = 90_000
-MODEL = "openrouter/free"  # Never add paid models or fallback routes.
+MODEL = "qwen/qwen3-coder:free"  # Fixed, zero-price coding model. No paid fallback.
 ENDPOINT = "https://openrouter.ai/api/v1/chat/completions"
 
 
@@ -49,13 +49,17 @@ def apply_proposal(source: str, proposal: dict) -> str:
 
 
 def parse_reply(reply: str) -> dict:
-    if not isinstance(reply, str):
-        raise ValueError("Model returned non-text output")
+    if not isinstance(reply, str) or not reply.strip():
+        raise ValueError("Model returned empty text: no proposal (possibly output token budget exhausted)")
     stripped = reply.strip()
     if stripped.startswith("```json"):
         stripped = stripped.removeprefix("```json").strip()
         stripped = stripped.removesuffix("```").strip()
-    result = json.loads(stripped)
+    try:
+        result = json.loads(stripped)
+    except json.JSONDecodeError:
+        # The model's raw response is never printed; it might contain source code.
+        raise ValueError("Model returned invalid JSON: no code changes made") from None
     if not isinstance(result, dict):
         raise ValueError("Expected a JSON object")
     return result
@@ -80,7 +84,7 @@ def free_completion(source: str, key: str) -> tuple[dict, str]:
         "model": MODEL,
         "messages": [{"role": "system", "content": system},
                      {"role": "user", "content": "Current source for review:\n" + source}],
-        "max_tokens": 1800,
+        "max_tokens": 3000,
         "temperature": 0.1,
         "stream": False,
     }).encode("utf-8")
@@ -100,12 +104,22 @@ def free_completion(source: str, key: str) -> tuple[dict, str]:
         raise RuntimeError(f"OpenRouter network/timeout failure ({type(error).__name__})") from None
     if len(raw) > MAX_RESPONSE:
         raise RuntimeError("OpenRouter response too large")
-    data = json.loads(raw)
-    if data.get("error"):
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError:
+        raise RuntimeError("OpenRouter returned invalid HTTP JSON; no code changes made") from None
+    if not isinstance(data, dict) or data.get("error"):
         raise RuntimeError("OpenRouter returned an API error (details suppressed)")
     choices = data.get("choices") or []
-    content = choices[0].get("message", {}).get("content") if choices else None
-    return parse_reply(content), str(data.get("model", MODEL))[:100]
+    choice = choices[0] if choices and isinstance(choices[0], dict) else {}
+    message = choice.get("message") or {}
+    content = message.get("content") if isinstance(message, dict) else None
+    if not isinstance(content, str) or not content.strip():
+        finish = choice.get("finish_reason")
+        # Only show a known enum, never log raw model output or API payload.
+        reason = finish if finish in ("stop", "length", "content_filter", "tool_calls") else "unknown"
+        raise RuntimeError(f"Model returned no visible JSON (finish_reason={reason}); no code changes made")
+    return parse_reply(content), MODEL
 
 
 def write_report(text: str) -> None:
