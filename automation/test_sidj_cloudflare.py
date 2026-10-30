@@ -74,13 +74,28 @@ class CloudflareOperationsTests(unittest.TestCase):
     def test_secret_bulk_uses_stdin_and_failure_output_is_not_printed(self):
         values = ops.settings(configuration())
         output = io.StringIO()
-        with patch.object(ops.subprocess, 'run', return_value=Mock(returncode=1, stdout=values['SIDJ_ADMIN_TOKEN'])) as run:
-            with contextlib.redirect_stdout(output), self.assertRaises(RuntimeError):
+        with patch.object(ops.subprocess, 'run', return_value=Mock(returncode=1, stdout=values['SIDJ_ADMIN_TOKEN'], stderr='[code: 10000]')) as run:
+            with contextlib.redirect_stdout(output), self.assertRaisesRegex(RuntimeError, '10000') as caught:
                 ops.wrangler(['secret', 'bulk'], values, json.dumps({'SIDJ_ADMIN_TOKEN': values['SIDJ_ADMIN_TOKEN']}))
         self.assertNotIn(values['SIDJ_ADMIN_TOKEN'], repr(run.call_args.args[0]))
         self.assertIn(values['SIDJ_ADMIN_TOKEN'], run.call_args.kwargs['input'])
         self.assertNotIn('SIDJ_ADMIN_TOKEN', run.call_args.kwargs['env'])
+        self.assertNotIn(values['SIDJ_ADMIN_TOKEN'], str(caught.exception))
         self.assertEqual(output.getvalue(), '')
+
+    def test_cloudflare_failure_identifies_service_and_only_numeric_error_codes(self):
+        secret = configuration()['CLOUDFLARE_API_TOKEN']
+        body = json.dumps({'errors': [{'code': 10000, 'message': secret},
+                                      {'code': secret, 'message': secret}]}).encode()
+        error = HTTPError('https://api.cloudflare.com/client/v4/private', 403, secret, {}, io.BytesIO(body))
+        with patch.object(ops.HTTP, 'open', side_effect=error):
+            with self.assertRaisesRegex(RuntimeError, 'Cloudflare API.*HTTP 403.*10000') as caught:
+                ops.request('https://api.cloudflare.com/client/v4/private')
+        self.assertNotIn(secret, str(caught.exception))
+        error = HTTPError('https://bs-tech-sidj.example.workers.dev/', 403, secret, {}, None)
+        with patch.object(ops.HTTP, 'open', side_effect=error):
+            with self.assertRaisesRegex(RuntimeError, 'Worker.*HTTP 403'):
+                ops.request('https://bs-tech-sidj.example.workers.dev/')
 
     def test_deploy_only_does_not_activate_webhook(self):
         values = ops.settings(configuration())

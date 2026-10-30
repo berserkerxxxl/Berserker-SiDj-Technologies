@@ -1,4 +1,5 @@
 name: SiDj Cloudflare - manual operations
+run-name: 'SiDj Cloudflare: ${{ inputs.operation }}'
 
 on:
   workflow_dispatch:
@@ -7,7 +8,7 @@ on:
         description: 'Операция (сначала deploy, затем status, затем activate)'
         type: choice
         options: [deploy, status, activate, rollback]
-        default: status
+        default: deploy
         required: true
       confirm_free_plan:
         description: 'Я проверил, что в Cloudflare используется Workers Free'

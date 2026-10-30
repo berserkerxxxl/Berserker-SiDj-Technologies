@@ -9,6 +9,7 @@ from pathlib import Path
 import re
 import subprocess
 from urllib.error import HTTPError, URLError
+from urllib.parse import urlsplit
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -71,7 +72,23 @@ def request(url, *, headers=None, payload=None, expected_status=200):
     except HTTPError as exc:
         if exc.code == expected_status:
             return ''
-        raise RuntimeError('Сервис отклонил операцию: HTTP ' + str(exc.code)) from None
+        host = urlsplit(url).hostname or ''
+        service = 'Cloudflare API' if host == 'api.cloudflare.com' else 'Worker' if host.endswith('.workers.dev') else 'Сервис'
+        codes = []
+        if host == 'api.cloudflare.com':
+            # Error messages can echo request data. Log only bounded numeric
+            # Cloudflare error codes, never the response text or credentials.
+            try:
+                raw = exc.read(16 * 1024 + 1)
+                data = json.loads(raw) if len(raw) <= 16 * 1024 else {}
+                errors = data.get('errors', []) if isinstance(data, dict) else []
+                codes = [str(item['code']) for item in errors[:8]
+                         if isinstance(item, dict) and type(item.get('code')) is int
+                         and 0 <= item['code'] <= 999999]
+            except (OSError, ValueError, AttributeError, TypeError):
+                pass
+        detail = ' (коды Cloudflare: ' + ', '.join(codes) + ')' if codes else ''
+        raise RuntimeError(service + ' отклонил операцию: HTTP ' + str(exc.code) + detail) from None
     except (URLError, TimeoutError, UnicodeError):
         raise RuntimeError('Нет подтверждения операции. Проверь состояние перед повтором.') from None
 
@@ -104,11 +121,14 @@ def wrangler(arguments, values, payload=None):
         raise RuntimeError('Wrangler не подтвердил операцию. Проверь состояние перед повтором.') from None
     # Raw CLI output may contain API diagnostics. Do not forward it to logs.
     if result.returncode:
-        raise RuntimeError('Wrangler не выполнил шаг ' + arguments[0] + '; проверь права токена и Workers Free.')
+        codes = re.findall(r'\[code:\s*(\d{1,6})\]', (result.stdout or '') + (result.stderr or ''))[:8]
+        detail = ' Коды Cloudflare: ' + ', '.join(codes) + '.' if codes else ''
+        raise RuntimeError('Wrangler не выполнил шаг ' + arguments[0] + '; проверь права токена и Workers Free.' + detail)
 
 
 def operate(action, values):
     url = public_url(values)
+    print('Worker: ' + url, flush=True)
     if action == 'deploy':
         wrangler(['deploy', '--var', 'SIDJ_PUBLIC_URL:' + url], values)
         print('Код Worker развёрнут; webhook пока не переключён.')
@@ -132,7 +152,6 @@ def operate(action, values):
         for value in sorted(values.values(), key=len, reverse=True):
             text = text.replace(value, '[скрыто]')
         print(text)
-    print('Worker: ' + url)
     if action == 'activate':
         print('Проверь реальные команды/кнопки/файлы; только потом отключай старый опрос.')
     return url
