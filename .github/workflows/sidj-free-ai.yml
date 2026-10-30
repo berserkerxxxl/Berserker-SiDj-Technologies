@@ -32,7 +32,7 @@ jobs:
           if [ -n "$existing" ]; then
             echo "Открыто предложение ИИ: $existing. Новое не создаём."
             echo '## Бесплатный ИИ-аудит' >> "$GITHUB_STEP_SUMMARY"
-            echo "Новый запуск пропущен: сначала проверь PR из ветки `$existing`." >> "$GITHUB_STEP_SUMMARY"
+            echo "Новый запуск пропущен: сначала проверь PR из ветки $existing." >> "$GITHUB_STEP_SUMMARY"
           else
             echo 'ready=true' >> "$GITHUB_OUTPUT"
           fi
