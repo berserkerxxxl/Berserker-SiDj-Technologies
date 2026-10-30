@@ -15,6 +15,7 @@ import tempfile
 import threading
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 import zipfile
 
@@ -75,6 +76,13 @@ def smoke(binary: Path, target: str, work: Path) -> None:
         assert len(api("/api/state")["Sources"]) == 3
         action("note", Kind="instructions", Text="Synthetic cross-platform release test")
         assert len(api("/api/state")["Notes"]) == 2
+        chat_id = state["Conversations"][0]["ID"]
+        choices = api("/api/files?conversation=" + urllib.parse.quote(chat_id))
+        picked = next(item for item in choices["Files"] if not item["Linked"])
+        link = {"ConversationID": chat_id, "SourceID": picked["SourceID"], "FileIndex": picked["Index"]}
+        action("file-link", **link)
+        chat = api("/api/conversation?id=" + urllib.parse.quote(chat_id))
+        assert any(item["Path"] == picked["Path"] for item in chat["Attachments"])
         assert not action("verify")["Errors"]
         repo = work / "Пробная копия" / "repository"
         credentials = {"Repository": str(repo), "Password": "Synthetic release test passphrase 2026!"}
@@ -92,10 +100,17 @@ def smoke(binary: Path, target: str, work: Path) -> None:
         with zipfile.ZipFile(io.BytesIO(package)) as archive:
             assert archive.testzip() is None
             assert any(name.endswith("index.html") for name in archive.namelist())
+            manifest = json.loads(archive.read("FILES_MANIFEST.json"))
+            assert len(manifest["FileLinks"]) == 1
+            assert manifest["FileLinks"][0]["ConversationID"] == chat_id
+            assert picked["Path"] in archive.read("index.html").decode("utf-8")
+        action("file-link", **link, Remove=True)
+        choices = api("/api/files?conversation=" + urllib.parse.quote(chat_id))
+        assert not any(item["Manual"] for item in choices["Files"])
         action("shutdown")
         process.wait(timeout=20)
         assert process.returncode == 0
-        print("PASS packaged executable:", target, "empty archive, token boundary, demo/dedup, notes, SHA-256, encryption, full check, restore, offline migration", flush=True)
+        print("PASS packaged executable:", target, "empty archive, token boundary, demo/dedup, notes, file link/unlink, SHA-256, encryption, full check, restore, offline migration with file links", flush=True)
     finally:
         if process.poll() is None:
             process.terminate()

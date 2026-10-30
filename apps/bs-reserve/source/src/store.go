@@ -18,8 +18,8 @@ import (
 	"time"
 )
 
-const Version = "0.1.0-alpha.6"
-const Build = "20261030.1"
+const Version = "0.1.0-alpha.7"
+const Build = "20261030.2"
 const maxSource = int64(2 << 30)
 const maxJSON = int64(256 << 20)
 const maxExpanded = uint64(8 << 30)
@@ -55,6 +55,7 @@ type Catalog struct {
 	Sources       map[string]Source
 	Conversations map[string]Conversation
 	Notes         []Note
+	FileLinks     []FileLink `json:",omitempty"`
 }
 type ImportResult struct {
 	SourceID            string
@@ -626,6 +627,9 @@ func (s *Store) Verify() VerifyResult {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	r := VerifyResult{Errors: []string{}}
+	if err := s.validateFileLinks(); err != nil {
+		r.Errors = append(r.Errors, err.Error())
+	}
 	seen := map[string]bool{}
 	for _, src := range s.Cat.Sources {
 		for _, e := range src.Entries {
@@ -696,7 +700,7 @@ func (s *Store) validate() error {
 			return errors.New("повреждён индекс записей")
 		}
 	}
-	return nil
+	return s.validateFileLinks()
 }
 
 func (s *Store) ImportFolder(folder string) (ImportResult, error) {
@@ -786,7 +790,7 @@ func (s *Store) ImportFolder(folder string) (ImportResult, error) {
 	return result, s.save()
 }
 
-const recoveryText = "B/S Reserve 0.1.0-alpha.6 — независимое восстановление\n\n" +
+const recoveryText = "B/S Reserve 0.1.0-alpha.7 — независимое восстановление\n\n" +
 	"Резервный репозиторий restic зашифрован. Рабочий каталог Vault не зашифрован.\n" +
 	"Для аварийного восстановления нужны движок restic, весь репозиторий и его пароль.\n" +
 	"В командной строке: restic -r \"ПУТЬ_К_РЕПОЗИТОРИЮ\" snapshots\n" +
@@ -795,7 +799,7 @@ const recoveryText = "B/S Reserve 0.1.0-alpha.6 — независимое во�
 	"Используйте полный путь к комплектному движку вместо restic в примерах выше.\n" +
 	"Пароль вводится по запросу restic; передавать его в аргументах не нужно.\n" +
 	"Восстанавливайте в пустую новую папку. Сохраните копию пароля отдельно от ПК.\n" +
-	"catalog.json описывает Sources/Entries (путь, SHA-256, размер) и версии Conversations.\n" +
+	"catalog.json описывает Sources/Entries (путь, SHA-256, размер) и версии Conversations.\nFileLinks содержит выбранные пользователем связи: ConversationID, SourceID, Index и Hash.\n" +
 	"Байты файлов находятся в objects/ПЕРВЫЕ_2_СИМВОЛА_ХЕША/ПОЛНЫЙ_ХЕШ.\n" +
 	"JSON и Markdown разговоров находятся в conversations/, память и инструкции — knowledge/.\n" +
 	"Эти файлы читаются без ChatGPT и без B/S Reserve. Все ветви из источника сохранены в JSON.\n" +

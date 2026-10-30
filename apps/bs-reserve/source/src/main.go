@@ -140,6 +140,7 @@ func (a *App) handler() http.Handler {
 	mux.HandleFunc("/api/search", a.search)
 	mux.HandleFunc("/api/source", a.source)
 	mux.HandleFunc("/api/file", a.file)
+	mux.HandleFunc("/api/files", a.files)
 	mux.HandleFunc("/api/download", a.download)
 	mux.HandleFunc("/api/pick-folder", a.chooseFolder)
 	mux.HandleFunc("/api/log", func(w http.ResponseWriter, r *http.Request) {
@@ -268,6 +269,9 @@ type ActionRequest struct {
 	ScheduleTime                                                                string
 	ScheduleAtLogon                                                             bool
 	Remember, AutoBackup, WatchEnabled                                          bool
+	ConversationID, SourceID                                                    string
+	FileIndex                                                                   *int
+	Remove                                                                      bool
 }
 
 func (a *App) action(w http.ResponseWriter, r *http.Request) {
@@ -297,6 +301,15 @@ func (a *App) action(w http.ResponseWriter, r *http.Request) {
 			return result, nil
 		case "note":
 			return nil, a.store.AddNote(req.Kind, req.Text)
+		case "file-link":
+			if req.FileIndex == nil {
+				return nil, errors.New("выберите сохранённый файл")
+			}
+			changed, err := a.store.SetFileLink(req.ConversationID, req.SourceID, *req.FileIndex, req.Remove)
+			if err == nil && changed {
+				err = a.backupIfEnabled()
+			}
+			return map[string]any{"ConversationID": req.ConversationID, "SourceID": req.SourceID, "FileIndex": *req.FileIndex, "Removed": req.Remove, "Changed": changed}, err
 		case "folder":
 			result, err := a.store.ImportFolder(req.Folder)
 			if err == nil && !result.Duplicate {

@@ -35,15 +35,25 @@ func appendAsset(list []Attachment, item Attachment) []Attachment {
 	return append(list, item)
 }
 
-// Only explicit file identifiers or an original path prefixed by a known
-// conversation ID establish a relationship. Display names alone do not.
+// Imported identifiers and explicit user selections establish relationships.
+// Display names alone never create a relationship.
 func (s *Store) indexAssets() *assetIndex {
 	index := &assetIndex{byToken: map[string][]Attachment{}, byConversation: map[string][]Attachment{}}
+	manual := map[string]map[int][]string{}
+	for _, link := range s.Cat.FileLinks {
+		if manual[link.SourceID] == nil {
+			manual[link.SourceID] = map[int][]string{}
+		}
+		manual[link.SourceID][link.Index] = append(manual[link.SourceID][link.Index], link.ConversationID)
+	}
 	for _, src := range s.Cat.Sources {
 		entries, _ := s.namedEntries(src)
 		for i, entry := range entries {
 			name := entryName(entry)
 			item := Attachment{Name: name, Path: assetExportPath(entry.Hash, name), Hash: entry.Hash, Size: entry.Size, SourcePath: entry.Path, SourceID: src.ID, Index: i}
+			for _, conversationID := range manual[src.ID][i] {
+				index.byConversation[conversationID] = appendAsset(index.byConversation[conversationID], item)
+			}
 			base := pathBase(entry.Path)
 			stem := strings.TrimSuffix(base, path.Ext(base))
 			if strings.HasPrefix(stem, "file_") || strings.HasPrefix(stem, "file-") {

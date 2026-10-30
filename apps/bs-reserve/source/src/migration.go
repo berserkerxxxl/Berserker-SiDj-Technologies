@@ -162,7 +162,7 @@ func (s *Store) migrationToDirectory(directory string) (any, error) {
 			files = append(files, archivedFile{Name: entryName(e), Path: dest, Hash: e.Hash, Size: e.Size, SourcePath: e.Path, SourceID: src.ID})
 		}
 	}
-	manifest, _ := json.MarshalIndent(map[string]any{"Schema": 1, "Version": Version, "Build": Build, "Files": files, "AssetMappings": mappingReports}, "", "  ")
+	manifest, _ := json.MarshalIndent(map[string]any{"Schema": 1, "Version": Version, "Build": Build, "Files": files, "AssetMappings": mappingReports, "FileLinks": s.Cat.FileLinks}, "", "  ")
 	data, _ := json.Marshal(map[string]any{"Chats": chats, "Files": files, "Created": now(), "Notes": s.Cat.Notes, "AssetMappings": mappingReports})
 	if err = addBytes("FILES_MANIFEST.json", manifest); err == nil {
 		err = addBytes("index.html", []byte(strings.ReplaceAll(offlineHTML, "__ARCHIVE_DATA__", string(data))))
