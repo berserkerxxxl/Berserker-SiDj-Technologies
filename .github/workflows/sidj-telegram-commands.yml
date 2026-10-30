@@ -2,6 +2,13 @@
 name: B/S tech - SiDj Telegram commands
 
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - automation/sidj_telegram.py
+      - automation/sidj_projects.json
+      - .github/workflows/sidj-telegram-commands.yml
   schedule:
     - cron: '3-58/5 * * * *'
   workflow_dispatch:
