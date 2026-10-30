@@ -35,6 +35,8 @@ jobs:
           cache-dependency-path: cloudflare/sidj-worker/package-lock.json
       - name: Scan public files for recognizable credentials
         run: python3 automation/check_sidj_secrets.py
+      - name: Verify free AI agent safety without external API
+        run: python3 -m unittest discover -s automation -p 'test_sidj_ai_agent.py' -v
       - name: Verify polling fallback and activation race
         run: python3 -m unittest discover -s automation -p 'test_sidj_telegram.py' -v
       - name: Verify manual Cloudflare operations without credentials
