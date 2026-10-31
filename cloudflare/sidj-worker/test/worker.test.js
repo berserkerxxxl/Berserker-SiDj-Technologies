@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
+import { COMMANDS } from "../src/index.js";
 import manifest from "../../../automation/sidj_projects.json" with { type: "json" };
 import { webhookSecret, boundedBytes, validateCatalog, fileURL, timeMSK, MAX_ATTACHMENT, fetchSafe } from "../src/security.js";
 
@@ -45,6 +46,8 @@ async function fixture(options = {}) {
     }
     if (parsed.hostname === "api.github.com") {
       if (options.githubError) return json({}, 403);
+      if (parsed.pathname.endsWith("/pulls")) return json(options.prs || []);
+      if (parsed.pathname.endsWith("/check-runs")) return json({ check_runs: options.prChecks || [] });
       if (parsed.pathname.endsWith("/jobs")) return json({ jobs: [{ name: "Windows", conclusion: "failure", steps: [{ name: "Compile", conclusion: "failure" }] }] });
       return json({ workflow_runs: options.runs || [run(10, "success"), run(9, "failure")] });
     }
@@ -337,6 +340,61 @@ test("reply failures return non-2xx, remain retryable and never expose token-bea
   fail = false;
   assert.equal((await f.send(body)).status, 200);
   assert.equal(f.tg.length, 2);
+});
+
+test("PR command exists in owner menu, help and callback; GitHub links are verified", async () => {
+  assert.equal(COMMANDS.filter(c => c.command === "pr").length, 1);
+  const f = await fixture({ prs: [
+    { number: 4, title: "Мониторинг бота", state: "open", draft: false, head: { sha: "a".repeat(40) } },
+    { number: 8, title: "Кэш JSON", state: "open", draft: true, head: { sha: "b".repeat(40) } },
+  ], prChecks: [{ status: "completed", conclusion: "success" }] });
+  assert.equal((await f.send(message("/help"))).status, 200);
+  assert.match(f.tg.at(-1).data.text, /\/pr —/);
+  assert.ok(f.tg.at(-1).data.reply_markup.inline_keyboard.some(row => row[0].callback_data === "pr"));
+  assert.equal((await f.send(message("/pr"))).status, 200);
+  const out = f.tg.at(-1).data;
+  assert.match(out.text, /Открыто: 2/);
+  assert.match(out.text, /#4 · 👀/);
+  assert.match(out.text, /#8 · 📝/);
+  assert.match(out.text, /Тесты пройдены/);
+  assert.ok(out.reply_markup.inline_keyboard[0][0].url.endsWith("/pull/4"));
+  assert.ok(out.reply_markup.inline_keyboard[1][0].url.endsWith("/pull/8"));
+  assert.equal((await f.send(callback("pr"))).status, 200);
+  assert.match(f.tg.at(-1).data.text, /PR на контроле/);
+});
+
+test("PR command distinguishes no PRs, GitHub errors, failed and pending checks", async () => {
+  const empty = await fixture();
+  assert.equal((await empty.send(message("/pr"))).status, 200);
+  assert.match(empty.tg.at(-1).data.text, /Открытых PR нет/);
+  const unavailable = await fixture({ githubError: true });
+  assert.equal((await unavailable.send(message("/pr"))).status, 200);
+  assert.match(unavailable.tg.at(-1).data.text, /не удалось получить/);
+  const failed = await fixture({ prs: [
+    { number: 4, title: "Fail", state: "open", head: { sha: "c".repeat(40) } },
+  ], prChecks: [{ status: "completed", conclusion: "failure" }] });
+  assert.equal((await failed.send(message("/pr"))).status, 200);
+  assert.match(failed.tg.at(-1).data.text, /Ошибка тестов/);
+  const pending = await fixture({ prs: [
+    { number: 4, title: "Pending", state: "open", head: { sha: "d".repeat(40) } },
+  ], prChecks: [{ status: "in_progress", conclusion: null }] });
+  assert.equal((await pending.send(message("/pr"))).status, 200);
+  assert.match(pending.tg.at(-1).data.text, /Тесты выполняются/);
+});
+
+test("protected menu refresh only calls setMyCommands and leaves webhook unchanged", async () => {
+  const f = await fixture({ webhook: origin + "/telegram" });
+  const result = await f.admin("commands");
+  assert.equal(result.status, 200);
+  assert.match(await result.text(), /Меню Telegram обновлено/);
+  assert.deepEqual(f.tg.map(t => t.method), ["getMe", "getChat", "getWebhookInfo", "setMyCommands"]);
+  const call = f.tg.at(-1).data;
+  assert.deepEqual(call.scope, { type: "chat", chat_id: 42 });
+  assert.ok(call.commands.some(c => c.command === "pr"));
+  const g = await fixture({ webhook: "https://other.example/telegram" });
+  assert.equal((await g.admin("commands")).status, 409);
+  assert.ok(!g.tg.some(t => t.method === "setMyCommands"));
+  assert.equal((await g.admin("commands", { Authorization: "Bearer wrong" })).status, 403);
 });
 
 test("Moscow times use 24-hour format across a date boundary", () => {
