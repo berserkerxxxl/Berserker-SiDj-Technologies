@@ -42,6 +42,26 @@ class PortfolioTests(unittest.TestCase):
         self.assertIn("фрагмент", path_a)
         self.assertIn("фрагмент", path_b)
 
+    def test_site_css_rule_is_not_cut_in_half(self):
+        data = (ai.ROOT / "index.html").read_text(encoding="utf-8")
+        windows, omitted = ai.source_windows(data)
+        self.assertFalse(omitted)
+        self.assertEqual("".join(windows), data)
+        self.assertTrue(all(len(window) <= ai.MAX_SOURCE for window in windows))
+        self.assertTrue(any(
+            ".visits-error{font-size:.74rem;color:#d6b4c1}" in window
+            for window in windows
+        ))
+
+    def test_oversized_minified_line_is_omitted_not_truncated(self):
+        source = "before\n" + "x" * (ai.MAX_SOURCE + 1) + "\nafter\n"
+        windows, omitted = ai.source_windows(source)
+        self.assertTrue(omitted)
+        self.assertTrue(all(len(window) <= ai.MAX_SOURCE for window in windows))
+        self.assertIn("AUDIT OMITTED line 2", "".join(windows))
+        self.assertIn("after\n", "".join(windows))
+        self.assertNotIn("x" * 100, "".join(windows))
+
     def test_source_selection_is_allowlisted(self):
         for name in ai.PROJECTS:
             if name == "codex":
@@ -112,7 +132,8 @@ class PortfolioTests(unittest.TestCase):
                     "choices": [{"message": {"content": json.dumps({
                         "finding": "Улучшить сообщения",
                         "recommendation": "Добавить тест",
-                        "severity": "низкий"
+                        "severity": "низкий",
+                        "evidence": "public source"
                     })}}],
                 }
                 return io.BytesIO(json.dumps(response).encode("utf-8"))
@@ -129,6 +150,25 @@ class PortfolioTests(unittest.TestCase):
         self.assertNotIn("api_key", requests[0])
         self.assertNotIn("authorization", requests[0])
         self.assertNotIn("secret", requests[0])
+
+    def test_rejects_unverified_model_evidence(self):
+        class FakeOpener:
+            def open(self, req, timeout):
+                response = {
+                    "choices": [{"message": {"content": json.dumps({
+                        "finding": "Синтаксическая ошибка",
+                        "recommendation": "Исправить CSS",
+                        "severity": "низкий",
+                        "evidence": ".visits-error{colo"
+                    })}}]
+                }
+                return io.BytesIO(json.dumps(response).encode("utf-8"))
+
+        with patch.object(ai, "build_opener", return_value=FakeOpener()):
+            with self.assertRaisesRegex(ValueError, "verified source evidence"):
+                ai.free_review(
+                    ".visits-error{color:#d6b4c1}", "index.html", "Сайт", "fake-key"
+                )
 
     def test_denies_non_free_model(self):
         with patch.object(ai, "FREE_MODELS", ("expensive/model",)):
