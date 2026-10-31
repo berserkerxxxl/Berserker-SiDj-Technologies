@@ -31,16 +31,16 @@ class MonitorTests(unittest.TestCase):
 
     def test_webhook_mismatch_is_bad_and_bad_telegram_credential_is_uncertain(self):
         with patch.object(mon, 'get', side_effect=[
-                b'B/S tech Worker доступен.', json.dumps({'ok': True, 'result': {
+                'B/S tech Worker доступен.'.encode('utf-8'), json.dumps({'ok': True, 'result': {
                     'url': 'https://different.example/telegram'}}).encode()]):
             self.assertEqual(mon.probe('123:fake'), ('bad', 'good', None))
         unauthorized = HTTPError('https://api.telegram.org/', 401, 'unauthorized', {}, None)
-        with patch.object(mon, 'get', side_effect=[b'B/S tech Worker доступен.', unauthorized]):
+        with patch.object(mon, 'get', side_effect=['B/S tech Worker доступен.'.encode('utf-8'), unauthorized]):
             self.assertEqual(mon.probe('123:fake'), ('unknown', 'bad', None))
 
     def test_analytics_expired_does_not_mark_worker_down(self):
         with patch.object(mon, 'get', side_effect=[
-            b'B/S tech Worker доступен.',
+            'B/S tech Worker доступен.'.encode('utf-8'),
             json.dumps({'ok': True, 'result': {'url': mon.BASE + 'telegram'}}).encode(),
             json.dumps({'success': True, 'result': {'status': 'expired'}}).encode(),
         ]):
