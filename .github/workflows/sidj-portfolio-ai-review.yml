@@ -1,0 +1,56 @@
+name: B/S tech - portfolio AI review (read-only)
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Sunday 08:41 Moscow, one bounded free request per public source project.
+    - cron: '41 5 * * 0'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bs-tech-portfolio-ai-read-only
+  cancel-in-progress: false
+
+jobs:
+  review:
+    if: github.repository == 'berserkerxxxl/Berserker-SiDj-Technologies'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        project: [sidj, agent, reserve, toolkit, limits, site, codex]
+    steps:
+      - name: Checkout trusted main without persisted GitHub credentials
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: main
+          persist-credentials: false
+
+      - name: Verify portfolio rules with offline tests
+        run: python3 -m unittest discover -s automation -p 'test_sidj_portfolio_audit.py' -v
+
+      - name: Read-only free AI review (one request, no code modifications)
+        id: review
+        continue-on-error: true
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          SIDJ_PORTFOLIO_REPORT_FILE: /tmp/bs-tech-portfolio-report.json
+        run: python3 automation/sidj_portfolio_audit.py audit ${{ matrix.project }}
+
+      - name: Send individual Russian project report to Telegram
+        if: always()
+        env:
+          SIDJ_PORTFOLIO_REPORT_FILE: /tmp/bs-tech-portfolio-report.json
+          SIDJ_BOT_TOKEN: ${{ secrets.SIDJ_TELEGRAM_BOT_TOKEN }}
+          SIDJ_CHAT_ID: ${{ secrets.SIDJ_TELEGRAM_CHAT_ID }}
+        run: python3 automation/sidj_portfolio_audit.py notify ${{ matrix.project }}
+
+      - name: Mark unavailable AI analysis as failed after Telegram notification
+        if: steps.review.outcome == 'failure'
+        run: |
+          echo "::error::Бесплатный ИИ не выдал проверенный отчёт. Сообщение отправлено в Telegram."
+          exit 1

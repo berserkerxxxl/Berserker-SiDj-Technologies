@@ -44,7 +44,7 @@ export async function hashHex(bytes) {
   return Array.from(new Uint8Array(digest), b => b.toString(16).padStart(2, "0")).join("");
 }
 
-// Cache only the derived digest per isolate; a changed token invalidates it.
+// Cache the derived SHA-256 digest per isolate; token rotation invalidates it.
 let webhookToken, webhookDigest;
 export async function webhookSecret(env) {
   const token = env.SIDJ_TELEGRAM_BOT_TOKEN;

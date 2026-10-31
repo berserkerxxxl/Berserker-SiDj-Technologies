@@ -103,6 +103,19 @@
           "size_bytes": 16590997
         }
       ]
+    },
+    {
+      "id": "sidj",
+      "name": "B/S SiDj — Telegram-бот и ИИ-разработчик",
+      "version": "1.0",
+      "description": "Наш Telegram-бот на Cloudflare Workers: каталог программ, ссылки на скачивание, статусы и ошибки сборок. Встроенная GitHub-автоматизация через OpenRouter предлагает безопасные улучшения исходников в отдельных Pull Request; их проверяет владелец.",
+      "notes": "Открытые исходники: github.com/berserkerxxxl/Berserker-SiDj-Technologies/tree/main/cloudflare/sidj-worker и github.com/berserkerxxxl/Berserker-SiDj-Technologies/blob/main/automation/sidj_ai_agent.py. Секреты и токены не публикуются.",
+      "page": "https://berserkerxxxl.github.io/Berserker-SiDj-Technologies/#sidj-bot",
+      "workflows": [
+        "sidj-free-ai.yml",
+        "sidj-ai-telegram-notify.yml"
+      ],
+      "downloads": []
     }
   ],
   "files_ref": "db9e00c82bbcea68a03502c24a79e7eda27fdd79"

@@ -1,0 +1,111 @@
+name: B/S tech - free AI improvement proposals
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Tuesday 07:17 Moscow time (UTC+3), one free-model request per run.
+    - cron: '17 4 * * 2'
+
+# Write access is used only at the final, manually reviewable PR publication step.
+# No Cloudflare, Telegram or deployment secrets are passed to this workflow.
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: bs-tech-sidj-free-ai
+  cancel-in-progress: false
+
+jobs:
+  improve:
+    if: github.repository == 'berserkerxxxl/Berserker-SiDj-Technologies'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - name: Check whether an AI proposal already needs review
+        id: gate
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          existing="$(gh pr list --repo "$GITHUB_REPOSITORY" --state open --limit 100 --json headRefName \
+            --jq '.[] | select(.headRefName | startswith("ai/sidj-free-")) | .headRefName' | head -n 1)"
+          if [ -n "$existing" ]; then
+            echo "Открыто предложение ИИ: $existing. Новое не создаём."
+            echo '## Бесплатный ИИ-аудит' >> "$GITHUB_STEP_SUMMARY"
+            echo "Новый запуск пропущен: сначала проверь PR из ветки $existing." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo 'ready=true' >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout without persisted credentials
+        if: steps.gate.outputs.ready == 'true'
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        if: steps.gate.outputs.ready == 'true'
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: cloudflare/sidj-worker/package-lock.json
+
+      - name: Offline tests of AI proposal restrictions
+        if: steps.gate.outputs.ready == 'true'
+        run: python3 -m unittest discover -s automation -p 'test_sidj_ai_agent.py' -v
+
+      - name: Generate ONE proposal using ONLY OpenRouter free models
+        if: steps.gate.outputs.ready == 'true'
+        id: propose
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          SIDJ_AI_REPORT_FILE: /tmp/sidj-ai-report.md
+        run: |
+          python3 automation/sidj_ai_agent.py
+          if git diff --quiet -- cloudflare/sidj-worker/src/index.js; then
+            echo 'has_change=false' >> "$GITHUB_OUTPUT"
+          else
+            echo 'has_change=true' >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Verify the candidate without any secrets
+        if: steps.propose.outputs.has_change == 'true'
+        env:
+          WRANGLER_SEND_METRICS: 'false'
+        run: |
+          git diff --check
+          python3 automation/check_sidj_secrets.py
+          python3 -m unittest discover -s automation -p 'test_sidj_telegram.py' -v
+          python3 -m unittest discover -s automation -p 'test_sidj_cloudflare*.py' -v
+          cd cloudflare/sidj-worker
+          npm ci --ignore-scripts
+          npm run check
+          npm test
+          npm run deploy:check
+
+      - name: Open a DRAFT pull request (never merge or deploy)
+        if: steps.propose.outputs.has_change == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          branch="ai/sidj-free-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git switch -c "$branch"
+          git add -- cloudflare/sidj-worker/src/index.js
+          git commit -m 'chore(sidj): propose small free AI improvement'
+          gh auth setup-git
+          git push origin "HEAD:refs/heads/$branch"
+          cat >> /tmp/sidj-ai-report.md <<'EOF'
+
+          ---
+          **Внимание:** это черновик. Код сгенерирован бесплатной ИИ-моделью и прошёл
+          автоматические проверки внутри исходного запуска Actions. Изменения требуют
+          ручного ревью. Не объединять без оценки функциональности и безопасности.
+          Никаких облачных развёртываний или платных вызовов не выполнялось.
+          EOF
+          gh pr create --repo "$GITHUB_REPOSITORY" \
+            --base main --head "$branch" --draft \
+            --title '🤖 B/S tech: предложение улучшения от бесплатного ИИ' \
+            --body-file /tmp/sidj-ai-report.md

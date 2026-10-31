@@ -2,7 +2,7 @@
 import snapshot from "../../../automation/sidj_projects.json" with { type: "json" };
 import { adminRoute } from "./setup.js";
 import {
-  API, RAW, BOT_USERNAME, MAX_ATTACHMENT, PublicError, response, checkConfig,
+  REPO, API, RAW, BOT_USERNAME, MAX_ATTACHMENT, PublicError, response, checkConfig,
   webhookSecret, equalSecret, allowedUpdate, boundedBytes, boundedJSON,
   fetchSafe, validateCatalog, fileURL, hashHex, timeMSK,
 } from "./security.js";
@@ -11,11 +11,11 @@ export const COMMANDS = [
   ["start", "Приветствие и возможности"], ["projects", "Все программы B/S tech"],
   ["project", "Описание выбранной программы"], ["download", "Скачать программу в Telegram"],
   ["status", "Состояние всех проектов"], ["builds", "Последние сборки программ"],
-  ["errors", "Ошибки сборок"], ["help", "Справка на русском"],
+  ["errors", "Ошибки сборок"], ["pr", "Открытые Pull Request"], ["help", "Справка на русском"],
 ].map(([command, description]) => ({ command, description }));
 const HELP = "🤖 СиДжи | B/S tech\n\n/projects — каталог разработок\n/project — описание программы\n" +
   "/download — получить файл\n/status — состояние проектов\n/builds — последние сборки\n" +
-  "/errors — ошибки сборок\n/help — справка\n\n⚡ Ответы через Cloudflare.\n🔒 Только личный чат владельца.";
+  "/errors — ошибки сборок\n/pr — открытые PR и результаты тестов\n/help — справка\n\n⚡ Ответы через Cloudflare.\n🔒 Только личный чат владельца.";
 const projectRows = projects => projects.map(p => [{ text: p.name, callback_data: "p:" + p.id }]);
 // Performance optimizations only, never the authorization boundary.
 const jsonCache = new Map(), completed = new Map(), inFlight = new Map();
@@ -50,7 +50,15 @@ async function cachedJSON(url, ttl, limit = 256 * 1024, headers = {}) {
     if (!r.ok) { await r.body?.cancel(); throw new PublicError("GitHub временно недоступен (HTTP " + r.status + ")."); }
     return boundedJSON(r, limit);
   })();
-  if (jsonCache.size > 64) jsonCache.clear();
+  // Evict expired entries first, then oldest if still over limit.
+  const now = Date.now();
+  for (const [key, value] of jsonCache) {
+    if (value.expires <= now) jsonCache.delete(key);
+  }
+  if (jsonCache.size >= 64) {
+    const firstKey = jsonCache.keys().next().value;
+    if (firstKey !== undefined) jsonCache.delete(firstKey);
+  }
   const record = { promise, expires: Date.now() + ttl * 1000 };
   jsonCache.set(url, record);
   try { return await promise; }
@@ -83,9 +91,16 @@ async function showProject(env, id) {
   const p = (await catalog()).projects.find(p => p.id === id);
   if (!p) return showProjects(env);
   const rows = p.downloads.map(d => [{ text: "📥 " + d.label, callback_data: "d:" + p.id + ":" + d.id }]);
+  if (p.id === "sidj") {
+    // Public source only: never expose or link to Cloudflare, Telegram or OpenRouter secrets.
+    rows.push([{ text: "💻 Исходники Cloudflare", url:
+      "https://github.com/" + REPO + "/tree/main/cloudflare/sidj-worker" }]);
+    rows.push([{ text: "🤖 Исходники ИИ-разработчика", url:
+      "https://github.com/" + REPO + "/blob/main/automation/sidj_ai_agent.py" }]);
+  }
   rows.push([{ text: "◀️ Все проекты", callback_data: "projects" }]);
   return say(env, "📦 " + p.name + " · " + p.version + "\n\n" + p.description + "\n\nℹ️ " + p.notes +
-    "\n\n🌐 " + p.page + "\n\nВыбери файл:", rows);
+    "\n\n🌐 " + p.page + (p.downloads.length ? "\n\nВыбери файл:" : "\n\nИсходники и описание по ссылкам:"), rows);
 }
 
 async function linkToFile(env, p, entry, url, explanation) {
@@ -212,11 +227,60 @@ async function recent(env, onlyErrors) {
     texts.join("\n\n") + (incomplete ? "\n\n⚠️ Часть истории недоступна." : ""), errorRows(entries));
 }
 
+// Read-only manual counterpart to the separate daily PR summary workflow.
+// The GitHub public API needs no token; use at most one list and eight check requests.
+async function showPR(env) {
+  let pulls;
+  try {
+    const result = await github("/pulls?state=open&per_page=30");
+    if (!Array.isArray(result)) throw new Error("Invalid PR listing");
+    pulls = result.filter(p => Number.isSafeInteger(p?.number) && p.number > 0 && p.state === "open");
+  } catch {
+    return say(env, "⚠️ Сейчас не удалось получить открытые PR из GitHub. Повтори /pr позже.");
+  }
+  if (!pulls.length) return say(env, "✅ Открытых PR нет. Всё проверено!", [
+    [{ text: "📋 Все Pull Request", url: "https://github.com/" + REPO + "/pulls" }],
+  ]);
+
+  const visible = pulls.slice(0, 8);
+  const checks = await Promise.allSettled(visible.map(async p => {
+    if (!/^[0-9a-f]{40}$/.test(p.head?.sha || "")) return "⚪ Проверки неизвестны";
+    const response = await github("/commits/" + p.head.sha + "/check-runs?per_page=100");
+    if (!Array.isArray(response?.check_runs)) return "⚪ Проверки неизвестны";
+    const runs = response.check_runs;
+    if (!runs.length) return "⚪ Проверок нет";
+    if (runs.some(c => ["failure", "timed_out", "cancelled", "action_required"].includes(c.conclusion)))
+      return "🔴 Ошибка тестов";
+    if (runs.some(c => c.status !== "completed")) return "🟡 Тесты выполняются";
+    if (runs.some(c => c.conclusion === "success") &&
+        runs.every(c => ["success", "neutral", "skipped"].includes(c.conclusion)))
+      return "🟢 Тесты пройдены";
+    return "⚪ Требуется проверка";
+  }));
+  const total = pulls.length === 30 ? "не менее 30" : String(pulls.length);
+  const rows = visible.map(p => [{ text: "🔍 PR #" + p.number,
+    url: "https://github.com/" + REPO + "/pull/" + p.number }]);
+  rows.push([{ text: "📋 Все открытые PR", url: "https://github.com/" + REPO + "/pulls" }]);
+  const lines = visible.map((p, i) => {
+    const name = String(p.title || "Без названия")
+      .replace(/[\u0000-\u001f\u007f\u202a-\u202e\u2066-\u2069]/g, " ")
+      .replace(/\s+/g, " ").trim().slice(0, 95);
+    const status = checks[i].status === "fulfilled" ? checks[i].value : "⚪ Проверки недоступны";
+    return "#" + p.number + " · " + (p.draft ? "📝 Черновик" : "👀 Ожидает решения") +
+      "\n" + name + "\n" + status;
+  });
+  const extra = pulls.length > 8 ? "\n\nЕщё PR: " + (pulls.length - 8) + ". Открой полный список." : "";
+  return say(env, "📋 B/S tech — PR на контроле\nОткрыто: " + total +
+    "\n\n" + lines.join("\n\n") + extra +
+    "\n\n🔒 Команда только показывает состояние; ничего не объединяет.", rows);
+}
+
 async function command(env, text) {
   const words = text.trim().split(/\s+/), [name, mention, extra] = words[0].toLowerCase().split("@");
   if ((mention && mention !== BOT_USERNAME) || extra) return;
   if (["/start", "/help"].includes(name)) return say(env, HELP, [
     [{ text: "📂 Все проекты", callback_data: "projects" }], [{ text: "📥 Скачать", callback_data: "downloads" }],
+    [{ text: "📋 Открытые PR", callback_data: "pr" }],
   ]);
   if (name === "/projects") return showProjects(env);
   if (name === "/project") return showProject(env, (words[1] || "").toLowerCase());
@@ -227,6 +291,7 @@ async function command(env, text) {
   if (name === "/status") return status(env);
   if (name === "/builds") return recent(env, false);
   if (name === "/errors") return recent(env, true);
+  if (name === "/pr") return showPR(env);
   return say(env, "Напиши /help или выбери программу в /projects.");
 }
 
@@ -238,6 +303,7 @@ async function handleUpdate(env, body) {
   try { await telegram(env, "answerCallbackQuery", { callback_query_id: cb.id }); }
   catch { /* Best effort; the actual answer below is still awaited. */ }
   if (["projects", "downloads"].includes(cb.data)) return showProjects(env);
+  if (cb.data === "pr") return showPR(env);
   if (/^p:[a-z0-9_]{1,24}$/.test(cb.data)) return showProject(env, cb.data.slice(2));
   if (/^d:[a-z0-9_]{1,24}:[a-z0-9_]{1,24}$/.test(cb.data)) return sendFile(env, ...cb.data.split(":").slice(1));
   return say(env, "Кнопка устарела. Открой /projects.");

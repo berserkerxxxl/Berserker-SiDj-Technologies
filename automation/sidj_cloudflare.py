@@ -152,12 +152,13 @@ def operate(action, values):
     url = public_url(values)
     print('Worker: ' + url, flush=True)
     if action == 'auto_deploy':
-        # No Telegram secrets, webhook operations, or secret bulk in this mode.
-        # Refuse to create a new Worker if its known deployment is missing.
+        # Code-only deployment to the existing Worker; no Telegram secrets or webhook operations.
         request(url)
         wrangler(['deploy', '--keep-vars', '--var', 'SIDJ_PUBLIC_URL:' + url], values)
-        request(url)
-        print('Код опубликован; существующие секреты и webhook не изменены.')
+        page = request(url + 'setup')
+        if 'Обновить меню команд' not in page:
+            raise RuntimeError('Публичный Worker не подтвердил новую версию после автопубликации.')
+        print('Код опубликован; проверен адрес /setup; секреты и webhook сохранены.')
     elif action == 'deploy':
         wrangler(['deploy', '--keep-vars', '--var', 'SIDJ_PUBLIC_URL:' + url], values)
         print('Код Worker развёрнут; webhook пока не переключён.')

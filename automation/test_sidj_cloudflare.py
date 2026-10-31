@@ -139,7 +139,7 @@ class CloudflareOperationsTests(unittest.TestCase):
         values = ops.settings(env, code_only=True)
         self.assertNotIn('SIDJ_TELEGRAM_BOT_TOKEN', values)
         with patch.object(ops, 'public_url', return_value='https://bs-tech-sidj.example.workers.dev/'):
-            with patch.object(ops, 'wrangler') as wrangler, patch.object(ops, 'request') as request:
+            with patch.object(ops, 'wrangler') as wrangler, patch.object(ops, 'request', side_effect=['ready', '<button>Обновить меню команд</button>']) as request:
                 with contextlib.redirect_stdout(io.StringIO()):
                     ops.operate('auto_deploy', values)
         self.assertEqual(wrangler.call_count, 1)
@@ -168,6 +168,19 @@ class CloudflareOperationsTests(unittest.TestCase):
                     ops.operate('activate', values)
         self.assertEqual(request.call_count, 2)
 
+
+    def test_one_time_release_targets_real_worker_and_checks_live_code(self):
+        workflow = (Path(__file__).resolve().parent.parent /
+                    '.github/workflows/sidj-worker-checks.yml').read_text(encoding='utf-8')
+        self.assertIn('release_pr16:', workflow)
+        self.assertIn("worker_dir = (Path.cwd() / 'cloudflare' / 'sidj-worker').resolve()", workflow)
+        self.assertIn("proc = subprocess.run(command, cwd=worker_dir,", workflow)
+        self.assertIn("'deploy', '--config', str(config), '--name', 'bs-tech-sidj'", workflow)
+        self.assertIn("and 'Обновить меню команд' in html", workflow)
+        self.assertIn("if not ready:", workflow)
+        self.assertIn("Telegram menu left unchanged.", workflow)
+        self.assertNotIn("proc = subprocess.run(command, cwd='.'", workflow)
+        self.assertIn("github.event.head_commit.message, 'fix: publish Telegram /pr to correct Cloudflare Worker (#16)'", workflow)
 
 if __name__ == '__main__':
     unittest.main()

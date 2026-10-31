@@ -1,0 +1,48 @@
+name: B/S tech - open PR reminders to Telegram
+
+on:
+  schedule:
+    # 09:10 Moscow every day (UTC+3 year-round); scheduled Actions may be delayed.
+    - cron: '10 6 * * *'
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/sidj-pr-watch.yml'
+      - 'automation/sidj_pr_watch.py'
+      - 'automation/test_sidj_pr_watch.py'
+
+permissions:
+  contents: read
+  pull-requests: read
+  checks: read
+
+jobs:
+  verify:
+    if: github.repository == 'berserkerxxxl/Berserker-SiDj-Technologies'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    steps:
+      - name: Checkout source for offline tests (no secrets)
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          persist-credentials: false
+      - name: Test PR notifier without network or credentials
+        run: python3 -m unittest discover -s automation -p 'test_sidj_pr_watch.py' -v
+
+  notify:
+    needs: verify
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    steps:
+      - name: Checkout trusted main without persisted credentials
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: main
+          persist-credentials: false
+      - name: Send private pending-PR summary to Telegram
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SIDJ_BOT_TOKEN: ${{ secrets.SIDJ_TELEGRAM_BOT_TOKEN }}
+          SIDJ_CHAT_ID: ${{ secrets.SIDJ_TELEGRAM_CHAT_ID }}
+        run: python3 automation/sidj_pr_watch.py
