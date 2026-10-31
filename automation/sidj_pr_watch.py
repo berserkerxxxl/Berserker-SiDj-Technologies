@@ -20,7 +20,7 @@ MAX_ITEMS = 8
 def safe_text(value: object, length: int = 90) -> str:
     if not isinstance(value, str):
         return ""
-    return " ".join(c for c in value if c.isprintable()).strip()[:length]
+    return re.sub(r"\s+", " ", "".join(c if c.isprintable() else " " for c in value)).strip()[:length]
 
 
 def github_get(path: str, token: str) -> object:
