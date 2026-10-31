@@ -50,7 +50,15 @@ async function cachedJSON(url, ttl, limit = 256 * 1024, headers = {}) {
     if (!r.ok) { await r.body?.cancel(); throw new PublicError("GitHub временно недоступен (HTTP " + r.status + ")."); }
     return boundedJSON(r, limit);
   })();
-  if (jsonCache.size > 64) jsonCache.clear();
+  // Evict expired entries first, then oldest if still over limit.
+  const now = Date.now();
+  for (const [key, value] of jsonCache) {
+    if (value.expires <= now) jsonCache.delete(key);
+  }
+  if (jsonCache.size >= 64) {
+    const firstKey = jsonCache.keys().next().value;
+    if (firstKey !== undefined) jsonCache.delete(firstKey);
+  }
   const record = { promise, expires: Date.now() + ttl * 1000 };
   jsonCache.set(url, record);
   try { return await promise; }
