@@ -69,3 +69,141 @@ jobs:
           npm run check
           npm test
           npm run deploy:check
+
+  # One-time release approved for PR #15, after full CI succeeds on main.
+  # The exact squash title makes this job inert for future commits.
+  release_pr15:
+    needs: check
+    if: >-
+      github.event_name == 'push' &&
+      github.repository == 'berserkerxxxl/Berserker-SiDj-Technologies' &&
+      github.ref == 'refs/heads/main' &&
+      github.event.head_commit.message == 'release: enable Telegram /pr command and owner menu (#15)'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    permissions:
+      contents: read
+    concurrency:
+      group: sidj-telegram-commands
+      cancel-in-progress: false
+    env:
+      WRANGLER_SEND_METRICS: 'false'
+    steps:
+      - name: Checkout reviewed main
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: cloudflare/sidj-worker/package-lock.json
+      - name: Install pinned Cloudflare tooling
+        working-directory: cloudflare/sidj-worker
+        run: npm ci --ignore-scripts
+      - name: Check existing Worker and deploy code only (preserve vars and secrets)
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          SIDJ_FREE_PLAN_CONFIRMED: 'yes'
+        run: |
+          python3 - <<'PY'
+          import os
+          import re
+          import subprocess
+          from urllib.request import Request
+          from automation.sidj_cloudflare import HTTP, USER_AGENT
+          url = 'https://bs-tech-sidj.berserkerxxxl.workers.dev/'
+          if (not os.environ.get('CLOUDFLARE_API_TOKEN')
+                  or not re.fullmatch(r'[0-9a-fA-F]{32}', os.environ.get('CLOUDFLARE_ACCOUNT_ID', ''))
+                  or os.environ.get('SIDJ_FREE_PLAN_CONFIRMED') != 'yes'):
+              raise SystemExit('Cloudflare credentials or Free plan confirmation missing.')
+          try:
+              with HTTP.open(Request(url, headers={'User-Agent': USER_AGENT}), timeout=15) as res:
+                  body = res.read(4096).decode('utf-8', 'replace')
+                  if res.status != 200 or 'Worker доступен.' not in body:
+                      raise ValueError('Existing Worker health cannot be confirmed.')
+          except Exception:
+              raise SystemExit('Existing Worker preflight failed; no deploy attempted.') from None
+          command = [
+              'cloudflare/sidj-worker/node_modules/.bin/wrangler',
+              'deploy', '--keep-vars', '--var', 'SIDJ_PUBLIC_URL:' + url,
+          ]
+          try:
+              proc = subprocess.run(command, cwd='.', capture_output=True, text=True, timeout=180)
+          except (OSError, subprocess.TimeoutExpired):
+              raise SystemExit('Cloudflare deploy did not complete; verify Workers dashboard.') from None
+          if proc.returncode:
+              raise SystemExit('Cloudflare code deploy failed; existing Worker was not intentionally removed.')
+          print('Cloudflare Worker deployed with --keep-vars; Telegram secrets/webhook not changed.')
+          PY
+      - name: Refresh private Telegram command menu only after successful deploy
+        env:
+          SIDJ_TELEGRAM_BOT_TOKEN: ${{ secrets.SIDJ_TELEGRAM_BOT_TOKEN }}
+          SIDJ_TELEGRAM_CHAT_ID: ${{ secrets.SIDJ_TELEGRAM_CHAT_ID }}
+        run: |
+          node --input-type=module -e "import {COMMANDS} from './cloudflare/sidj-worker/src/index.js'; import {writeFileSync} from 'node:fs'; writeFileSync('/tmp/sidj-pr15-commands.json', JSON.stringify(COMMANDS));"
+          python3 - <<'PY'
+          import json
+          import os
+          import re
+          from pathlib import Path
+          from urllib.error import HTTPError, URLError
+          from urllib.request import HTTPRedirectHandler, Request, build_opener
+          token = os.environ.get('SIDJ_TELEGRAM_BOT_TOKEN', '')
+          chat = os.environ.get('SIDJ_TELEGRAM_CHAT_ID', '')
+          if not re.fullmatch(r'[0-9]{5,16}:[A-Za-z0-9_-]{20,}', token) or not re.fullmatch(r'[1-9][0-9]{0,15}', chat):
+              raise SystemExit('Telegram owner credentials missing or invalid.')
+          if int(chat) > 9007199254740991:
+              raise SystemExit('Telegram chat ID is outside supported integer range.')
+          commands = json.loads(Path('/tmp/sidj-pr15-commands.json').read_text(encoding='utf-8'))
+          if not isinstance(commands, list) or not any(c.get('command') == 'pr' for c in commands):
+              raise SystemExit('The new /pr command is not present in the source.')
+          scope = {'type': 'chat', 'chat_id': int(chat)}
+          class NoRedirect(HTTPRedirectHandler):
+              def redirect_request(self, req, fp, code, msg, headers, newurl):
+                  raise RuntimeError('Telegram API redirect blocked.')
+          opener = build_opener(NoRedirect())
+          def telegram(method, data=None):
+              payload = None if data is None else json.dumps(data).encode('utf-8')
+              request = Request(
+                  'https://api.telegram.org/bot' + token + '/' + method,
+                  data=payload,
+                  headers={'Content-Type': 'application/json', 'User-Agent': 'B-S-tech-SiDj-menu-release'},
+                  method='POST' if data is not None else 'GET',
+              )
+              try:
+                  with opener.open(request, timeout=18) as res:
+                      body = res.read(32769)
+              except HTTPError as exc:
+                  raise RuntimeError('Telegram API rejected operation: HTTP ' + str(exc.code)) from None
+              except (URLError, TimeoutError, OSError):
+                  raise RuntimeError('Telegram API unavailable; menu refresh not confirmed.') from None
+              if len(body) > 32768:
+                  raise RuntimeError('Telegram API response too large.')
+              try:
+                  value = json.loads(body)
+              except (ValueError, TypeError):
+                  raise RuntimeError('Telegram API response invalid.') from None
+              if not isinstance(value, dict) or value.get('ok') is not True:
+                  raise RuntimeError('Telegram API did not confirm operation.')
+              return value.get('result')
+          try:
+              bot = telegram('getMe')
+              info = telegram('getWebhookInfo')
+              owner = telegram('getChat', {'chat_id': int(chat)})
+              if (not isinstance(bot, dict) or bot.get('username', '').casefold() != 'bs_sidj_bot'
+                      or not isinstance(info, dict)
+                      or info.get('url') != 'https://bs-tech-sidj.berserkerxxxl.workers.dev/telegram'
+                      or not isinstance(owner, dict)
+                      or owner.get('type') != 'private' or owner.get('id') != int(chat)):
+                  raise RuntimeError('Bot, owner chat or webhook mismatch; menu left unchanged.')
+              telegram('setMyCommands', {'commands': commands, 'scope': scope})
+              current = telegram('getMyCommands', {'scope': scope})
+              if current != commands:
+                  raise RuntimeError('Telegram menu update was not verified.')
+          except RuntimeError as exc:
+              raise SystemExit(str(exc)) from None
+          print('Telegram menu verified: /pr available in private owner chat; webhook unchanged.')
+          PY
