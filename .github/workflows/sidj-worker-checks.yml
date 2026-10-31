@@ -72,13 +72,13 @@ jobs:
 
   # One-time release approved for PR #15, after full CI succeeds on main.
   # The exact squash title makes this job inert for future commits.
-  release_pr15:
+  release_pr16:
     needs: check
     if: >-
       github.event_name == 'push' &&
       github.repository == 'berserkerxxxl/Berserker-SiDj-Technologies' &&
       github.ref == 'refs/heads/main' &&
-      startsWith(github.event.head_commit.message, 'release: enable Telegram /pr command and owner menu (#15)')
+      startsWith(github.event.head_commit.message, 'fix: publish Telegram /pr to correct Cloudflare Worker (#16)')
     runs-on: ubuntu-24.04
     timeout-minutes: 8
     permissions:
@@ -112,6 +112,8 @@ jobs:
           import os
           import re
           import subprocess
+          import time
+          from pathlib import Path
           from urllib.request import Request
           from automation.sidj_cloudflare import HTTP, USER_AGENT
           url = 'https://bs-tech-sidj.berserkerxxxl.workers.dev/'
@@ -126,24 +128,46 @@ jobs:
                       raise ValueError('Existing Worker health cannot be confirmed.')
           except Exception:
               raise SystemExit('Existing Worker preflight failed; no deploy attempted.') from None
+          worker_dir = (Path.cwd() / 'cloudflare' / 'sidj-worker').resolve()
+          config = worker_dir / 'wrangler.toml'
+          binary = worker_dir / 'node_modules' / '.bin' / 'wrangler'
+          if not config.is_file() or not binary.is_file():
+              raise SystemExit('Worker config or Wrangler executable missing. No deploy attempted.')
           command = [
-              'cloudflare/sidj-worker/node_modules/.bin/wrangler',
-              'deploy', '--keep-vars', '--var', 'SIDJ_PUBLIC_URL:' + url,
+              str(binary), 'deploy', '--config', str(config), '--name', 'bs-tech-sidj',
+              '--keep-vars', '--var', 'SIDJ_PUBLIC_URL:' + url,
           ]
           try:
-              proc = subprocess.run(command, cwd='.', capture_output=True, text=True, timeout=180)
+              proc = subprocess.run(command, cwd=worker_dir,
+                                    capture_output=True, text=True, timeout=180)
           except (OSError, subprocess.TimeoutExpired):
               raise SystemExit('Cloudflare deploy did not complete; verify Workers dashboard.') from None
           if proc.returncode:
               raise SystemExit('Cloudflare code deploy failed; existing Worker was not intentionally removed.')
-          print('Cloudflare Worker deployed with --keep-vars; Telegram secrets/webhook not changed.')
+          print('Wrangler returned success; verifying the live Worker before menu update.')
+          ready = False
+          for attempt in range(10):
+              try:
+                  with HTTP.open(Request(url + 'setup', headers={'User-Agent': USER_AGENT}), timeout=12) as res:
+                      html = res.read(32769).decode('utf-8', 'replace')
+                      ready = (res.status == 200 and len(html) <= 32768
+                               and 'Обновить меню команд' in html)
+                  if ready:
+                      break
+              except Exception:
+                  pass
+              if attempt < 9:
+                  time.sleep(6)
+          if not ready:
+              raise SystemExit('Live Worker lacks the new /setup marker; Telegram menu left unchanged.')
+          print('Live Worker verified: new /setup menu control is present.')
           PY
       - name: Refresh private Telegram command menu only after successful deploy
         env:
           SIDJ_TELEGRAM_BOT_TOKEN: ${{ secrets.SIDJ_TELEGRAM_BOT_TOKEN }}
           SIDJ_TELEGRAM_CHAT_ID: ${{ secrets.SIDJ_TELEGRAM_CHAT_ID }}
         run: |
-          node --input-type=module -e "import {COMMANDS} from './cloudflare/sidj-worker/src/index.js'; import {writeFileSync} from 'node:fs'; writeFileSync('/tmp/sidj-pr15-commands.json', JSON.stringify(COMMANDS));"
+          node --input-type=module -e "import {COMMANDS} from './cloudflare/sidj-worker/src/index.js'; import {writeFileSync} from 'node:fs'; writeFileSync('/tmp/sidj-pr16-commands.json', JSON.stringify(COMMANDS));"
           python3 - <<'PY'
           import json
           import os
@@ -157,7 +181,7 @@ jobs:
               raise SystemExit('Telegram owner credentials missing or invalid.')
           if int(chat) > 9007199254740991:
               raise SystemExit('Telegram chat ID is outside supported integer range.')
-          commands = json.loads(Path('/tmp/sidj-pr15-commands.json').read_text(encoding='utf-8'))
+          commands = json.loads(Path('/tmp/sidj-pr16-commands.json').read_text(encoding='utf-8'))
           if not isinstance(commands, list) or not any(c.get('command') == 'pr' for c in commands):
               raise SystemExit('The new /pr command is not present in the source.')
           scope = {'type': 'chat', 'chat_id': int(chat)}
