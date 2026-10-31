@@ -29,10 +29,18 @@ class PortfolioTests(unittest.TestCase):
 
     def test_bot_source_is_public_and_bounded(self):
         source, path, partial = ai.read_source("sidj", 0)
+        full = (ai.ROOT / "cloudflare/sidj-worker/src/index.js").read_text(encoding="utf-8")
+        windows, omitted = ai.source_windows(full)
         self.assertTrue(source)
         self.assertLessEqual(len(source), ai.MAX_SOURCE)
-        self.assertEqual(path, "cloudflare/sidj-worker/src/index.js")
-        self.assertFalse(partial)
+        self.assertEqual(source, windows[0])
+        self.assertEqual(
+            path, "cloudflare/sidj-worker/src/index.js" +
+            (f" (фрагмент 1/{len(windows)})" if len(windows) > 1 else "")
+        )
+        self.assertEqual(partial, len(windows) > 1 or omitted)
+        self.assertFalse(omitted)
+        self.assertEqual("".join(windows), full)
 
     def test_rotate_large_html_windows(self):
         a, path_a, partial_a = ai.read_source("toolkit", 0)
