@@ -22,13 +22,15 @@ button{font:inherit;border:0;border-radius:8px;padding:12px 16px;margin:5px 5px 
 <input id="admin" type="password" autocomplete="off" spellcheck="false" maxlength="128">
 <button id="status" type="button">Проверить подключение</button>
 <button id="activate" type="button">Подключить webhook</button>
+<button id="commands" type="button">Обновить меню команд</button>
 <button id="rollback" type="button">Откатить на опрос</button>
+<p><small>«Обновить меню команд» изменяет только список команд Telegram, не переключает webhook.</small></p>
 <p><small>Пароль передаётся только этому Worker по HTTPS и очищается из поля после запроса. Браузер не сохраняет его в хранилище страницы.</small></p>
 <p>До переключения дождись окончания запущенного опроса GitHub. После подключения проверь команды и кнопки в Telegram; только затем отключай старое расписание. При откате старый workflow должен быть включён.</p>
 <pre id="result" role="status" aria-live="polite">Проверка ещё не выполнялась.</pre>
 <script nonce="${nonce}">
 const field=document.getElementById('admin'),output=document.getElementById('result');
-for(const action of ['status','activate','rollback'])document.getElementById(action).addEventListener('click',async()=>{
+for(const action of ['status','activate','commands','rollback'])document.getElementById(action).addEventListener('click',async()=>{
   if(!/^[A-Za-z0-9_-]{32,128}$/.test(field.value)){output.textContent='Введи пароль панели из Cloudflare (32–128 символов).';return;}
   if(action==='activate'&&!confirm('Подключить webhook? Дождись окончания запущенного опроса GitHub. Очередь Telegram будет сохранена.'))return;
   if(action==='rollback'&&!confirm('Удалить webhook и вернуться к опросу? Сначала убедись, что старый workflow включён. Очередь сохранится.'))return;
@@ -70,7 +72,7 @@ export async function adminRoute(request, env, telegram, commands) {
     if (request.method !== "GET") return response("Method not allowed", 405, { Allow: "GET" });
     return setupPage();
   }
-  if (!["/admin/status", "/admin/activate", "/admin/rollback"].includes(url.pathname)) return response("Not found", 404);
+  if (!["/admin/status", "/admin/activate", "/admin/commands", "/admin/rollback"].includes(url.pathname)) return response("Not found", 404);
   if (request.method !== "POST") return response("Method not allowed", 405, { Allow: "POST" });
   if (!/^[A-Za-z0-9_-]{32,128}$/.test(env.SIDJ_ADMIN_TOKEN || "")) return response("Панель выключена: настрой SIDJ_ADMIN_TOKEN в Secrets.", 503);
   const bearer = request.headers.get("authorization") || "";
@@ -85,6 +87,11 @@ export async function adminRoute(request, env, telegram, commands) {
   await botIdentity(env, telegram);
   const target = origin + "/telegram", current = await telegram(env, "getWebhookInfo", {});
   if (action === "status") return response(webhookStatus(current, target));
+  if (action === "commands") {
+    if (current.url !== target) return response("Текущий webhook не принадлежит этому Worker. Меню не изменено.", 409);
+    await telegram(env, "setMyCommands", { commands, scope: { type: "chat", chat_id: Number(env.SIDJ_TELEGRAM_CHAT_ID) } });
+    return response("✅ Меню Telegram обновлено. Webhook и секреты не изменены.");
+  }
   if (action === "rollback") {
     if (current.url && current.url !== target) return response("У бота другой webhook. Откат отменён.", 409);
     await telegram(env, "deleteWebhook", { drop_pending_updates: false });
