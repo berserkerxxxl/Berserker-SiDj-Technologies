@@ -1,6 +1,7 @@
 // B/S tech · СиДжи. No credentials, queues or paid storage in the source tree.
 import snapshot from "../../../automation/sidj_projects.json" with { type: "json" };
 import { adminRoute } from "./setup.js";
+import { allowRate, rateKey, diagnostic, githubJSON } from "./resilience.js";
 import {
   REPO, API, RAW, BOT_USERNAME, MAX_ATTACHMENT, PublicError, response, checkConfig,
   webhookSecret, equalSecret, allowedUpdate, boundedBytes, boundedJSON,
@@ -45,11 +46,7 @@ export function say(env, message, rows) {
 async function cachedJSON(url, ttl, limit = 256 * 1024, headers = {}) {
   const cached = jsonCache.get(url);
   if (cached && cached.expires > Date.now()) return cached.promise;
-  const promise = (async () => {
-    const r = await fetchSafe(url, { headers, cf: { cacheEverything: true, cacheTtl: ttl } });
-    if (!r.ok) { await r.body?.cancel(); throw new PublicError("GitHub временно недоступен (HTTP " + r.status + ")."); }
-    return boundedJSON(r, limit);
-  })();
+  const promise = githubJSON(url, { headers, cf: { cacheEverything: true, cacheTtl: ttl } }, limit);
   // Evict expired entries first, then oldest if still over limit.
   const now = Date.now();
   for (const [key, value] of jsonCache) {
@@ -327,12 +324,25 @@ async function processOnce(env, body, key) {
 
 export default {
   async fetch(request, env) {
-    const url = new URL(request.url);
+    const started = Date.now(), url = new URL(request.url);
+    const route = url.pathname === "/telegram" ? "telegram" :
+      url.pathname.startsWith("/admin/") ? "admin" :
+      url.pathname === "/setup" ? "setup" : url.pathname === "/" ? "health" : "other";
+    let result;
     try {
-      if (url.pathname === "/setup" || url.pathname.startsWith("/admin/")) return await adminRoute(request, env, telegram, COMMANDS);
+      result = await (async () => {
+      if (url.pathname === "/setup" || url.pathname.startsWith("/admin/")) {
+        if (url.pathname.startsWith("/admin/") &&
+            !allowRate(rateKey(request, "admin"), 30, 60_000)) {
+          return response("Слишком много запросов. Повтори через минуту.", 429, { "Retry-After": "60" });
+        }
+        return adminRoute(request, env, telegram, COMMANDS);
+      }
       if (url.pathname === "/activate") return response("Активация через GET отключена. Используй защищённую панель /setup.", 405, { Allow: "POST" });
       if (url.pathname === "/telegram") {
         if (request.method !== "POST") return response("Method not allowed", 405, { Allow: "POST" });
+        if (!allowRate(rateKey(request, "telegram"), 120, 60_000))
+          return response("Слишком много запросов.", 429, { "Retry-After": "60" });
         if (url.origin !== checkConfig(env)) return response("Forbidden", 403);
         const secret = await webhookSecret(env);
         if (!await equalSecret(request.headers.get("X-Telegram-Bot-Api-Secret-Token") || "", secret)) return response("Forbidden", 403);
@@ -340,14 +350,23 @@ export default {
         const body = await boundedJSON(request);
         if (!body || !Number.isSafeInteger(body.update_id) || body.update_id < 0) return response("Invalid update", 400);
         if (!allowedUpdate(env, body)) return response("OK");
-        await processOnce(env, body, secret + ":" + body.update_id);
+        const key = secret + ":" + body.update_id;
+        // A Telegram retry of an already seen update must not consume the owner's quota.
+        if (!(completed.get(key) > Date.now() || inFlight.has(key)) &&
+            !allowRate("owner:" + env.SIDJ_TELEGRAM_CHAT_ID, 90, 60_000))
+          return response("Слишком много команд.", 429, { "Retry-After": "60" });
+        await processOnce(env, body, key);
         return response("OK");
       }
       if (url.pathname === "/" && request.method === "GET") return response("🤖 СиДжи | B/S tech\nWorker доступен. Настройка владельца: /setup.");
       return response("Not found", 404);
+      })();
     } catch (error) {
-      return response(error instanceof PublicError ? error.message : "Временная ошибка обработки. Telegram повторит запрос.",
+      result = response(error instanceof PublicError ? error.message : "Временная ошибка обработки. Telegram повторит запрос.",
         error instanceof PublicError ? error.status : 502);
     }
+    // Structured, non-persistent diagnostics for wrangler tail; no secrets or user data.
+    diagnostic(route, result.status, started);
+    return result;
   },
 };
