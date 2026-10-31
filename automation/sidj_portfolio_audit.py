@@ -146,6 +146,26 @@ def parse_analysis(raw: str) -> dict:
     }
 
 
+def evidence_is_complete(source: str, evidence: str) -> bool:
+    """Require an exact quote ending and beginning at complete tokens."""
+    if not 12 <= len(evidence) <= 220 or "AUDIT OMITTED" in evidence:
+        return False
+    for match in re.finditer(re.escape(evidence), source):
+        start, end = match.span()
+        before = source[start - 1] if start else ""
+        after = source[end] if end < len(source) else ""
+        # Adjacent identifier characters mean a supposedly exact quote cut
+        # a token: e.g. ".visits-error{colo" from "...{color:...".
+        if (before and re.match(r"[\w-]", before)
+                and re.match(r"[\w-]", evidence[0])):
+            continue
+        if (after and re.match(r"[\w-]", after)
+                and re.match(r"[\w-]", evidence[-1])):
+            continue
+        return True
+    return False
+
+
 def free_review(source: str, path: str, project: str, key: str) -> tuple[dict, str]:
     """Exactly one call with explicit :free models, no paid fallback or retries."""
     if not FREE_MODELS or any(not x.endswith(":free") for x in FREE_MODELS):
@@ -207,8 +227,7 @@ def free_review(source: str, path: str, project: str, key: str) -> tuple[dict, s
         analysis = parse_analysis(answer.get("content") if isinstance(answer, dict) else None)
         if analysis["severity"] != "нет замечаний":
             evidence = analysis["evidence"]
-            if (len(evidence) < 12 or evidence not in source
-                    or "AUDIT OMITTED" in evidence):
+            if not evidence_is_complete(source, evidence):
                 raise ValueError("AI finding has no verified source evidence")
     except ValueError as error:
         # Do not log or send untrusted AI content; report a bounded diagnostic.
