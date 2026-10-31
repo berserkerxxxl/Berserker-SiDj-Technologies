@@ -145,7 +145,7 @@ class CloudflareOperationsTests(unittest.TestCase):
         self.assertEqual(wrangler.call_count, 1)
         self.assertEqual(wrangler.call_args.args[0][:2], ['deploy', '--keep-vars'])
         self.assertEqual(request.call_count, 2)
-        self.assertTrue(all(call.args[0].endswith('.workers.dev/') for call in request.call_args_list))
+        self.assertEqual([call.args[0].split('.dev/')[-1] for call in request.call_args_list], ['', 'setup'])
         with self.assertRaises(RuntimeError):
             ops.settings({**env, 'SIDJ_FREE_PLAN_CONFIRMED': 'no'}, code_only=True)
 
