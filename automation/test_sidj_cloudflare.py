@@ -133,6 +133,22 @@ class CloudflareOperationsTests(unittest.TestCase):
         self.assertEqual(request.call_count, 1)
         self.assertNotIn('admin/activate', request.call_args.args[0])
 
+    def test_automatic_deploy_uses_only_cloudflare_credentials_and_preserves_secrets(self):
+        env = {key: value for key, value in configuration().items()
+               if key in ('CLOUDFLARE_API_TOKEN', 'CLOUDFLARE_ACCOUNT_ID', 'SIDJ_FREE_PLAN_CONFIRMED')}
+        values = ops.settings(env, code_only=True)
+        self.assertNotIn('SIDJ_TELEGRAM_BOT_TOKEN', values)
+        with patch.object(ops, 'public_url', return_value='https://bs-tech-sidj.example.workers.dev/'):
+            with patch.object(ops, 'wrangler') as wrangler, patch.object(ops, 'request', side_effect=['ready', '<button>Обновить меню команд</button>']) as request:
+                with contextlib.redirect_stdout(io.StringIO()):
+                    ops.operate('auto_deploy', values)
+        self.assertEqual(wrangler.call_count, 1)
+        self.assertEqual(wrangler.call_args.args[0][:2], ['deploy', '--keep-vars'])
+        self.assertEqual(request.call_count, 2)
+        self.assertEqual([call.args[0].split('.dev/')[-1] for call in request.call_args_list], ['', 'setup'])
+        with self.assertRaises(RuntimeError):
+            ops.settings({**env, 'SIDJ_FREE_PLAN_CONFIRMED': 'no'}, code_only=True)
+
     def test_activation_checks_unsigned_rejection_then_owner_before_switching(self):
         values = ops.settings(configuration())
         with patch.object(ops, 'public_url', return_value='https://bs-tech-sidj.example.workers.dev/'):

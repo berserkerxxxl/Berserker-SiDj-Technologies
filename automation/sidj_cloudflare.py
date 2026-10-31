@@ -27,9 +27,10 @@ class NoRedirect(HTTPRedirectHandler):
 HTTP = build_opener(NoRedirect())
 
 
-def settings(environ):
-    names = ('CLOUDFLARE_API_TOKEN', 'CLOUDFLARE_ACCOUNT_ID', 'SIDJ_TELEGRAM_BOT_TOKEN',
-             'SIDJ_TELEGRAM_CHAT_ID')
+def settings(environ, *, code_only=False):
+    names = (('CLOUDFLARE_API_TOKEN', 'CLOUDFLARE_ACCOUNT_ID') if code_only else
+             ('CLOUDFLARE_API_TOKEN', 'CLOUDFLARE_ACCOUNT_ID', 'SIDJ_TELEGRAM_BOT_TOKEN',
+              'SIDJ_TELEGRAM_CHAT_ID'))
     values = {name: environ.get(name, '').strip() for name in names}
     for name, value in values.items():
         if not value:
@@ -38,6 +39,10 @@ def settings(environ):
         raise RuntimeError('Некорректный формат CLOUDFLARE_API_TOKEN')
     if not re.fullmatch(r'[a-fA-F0-9]{32}', values['CLOUDFLARE_ACCOUNT_ID']):
         raise RuntimeError('Некорректный CLOUDFLARE_ACCOUNT_ID')
+    if code_only:
+        if environ.get('SIDJ_FREE_PLAN_CONFIRMED') != 'yes':
+            raise RuntimeError('Авторазвёртывание разрешено только после подтверждения Workers Free.')
+        return values
     if not re.fullmatch(r'\d{5,16}:[A-Za-z0-9_-]{20,}', values['SIDJ_TELEGRAM_BOT_TOKEN']):
         raise RuntimeError('Некорректный SIDJ_TELEGRAM_BOT_TOKEN')
     if not re.fullmatch(r'[1-9]\d{0,15}', values['SIDJ_TELEGRAM_CHAT_ID']):
@@ -146,8 +151,16 @@ def wrangler(arguments, values, payload=None):
 def operate(action, values):
     url = public_url(values)
     print('Worker: ' + url, flush=True)
-    if action == 'deploy':
-        wrangler(['deploy', '--var', 'SIDJ_PUBLIC_URL:' + url], values)
+    if action == 'auto_deploy':
+        # Code-only deployment to the existing Worker; no Telegram secrets or webhook operations.
+        request(url)
+        wrangler(['deploy', '--keep-vars', '--var', 'SIDJ_PUBLIC_URL:' + url], values)
+        page = request(url + 'setup')
+        if 'Обновить меню команд' not in page:
+            raise RuntimeError('Публичный Worker не подтвердил новую версию после автопубликации.')
+        print('Код опубликован; проверен адрес /setup; секреты и webhook сохранены.')
+    elif action == 'deploy':
+        wrangler(['deploy', '--keep-vars', '--var', 'SIDJ_PUBLIC_URL:' + url], values)
         print('Код Worker развёрнут; webhook пока не переключён.')
         secrets = {name: values[name] for name in
                    ('SIDJ_TELEGRAM_BOT_TOKEN', 'SIDJ_TELEGRAM_CHAT_ID', 'SIDJ_ADMIN_TOKEN')}
@@ -180,10 +193,10 @@ def operate(action, values):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('operation', choices=('deploy', 'status', 'activate', 'rollback'))
+    parser.add_argument('operation', choices=('deploy', 'auto_deploy', 'status', 'activate', 'rollback'))
     args = parser.parse_args()
     try:
-        operate(args.operation, settings(os.environ))
+        operate(args.operation, settings(os.environ, code_only=args.operation == 'auto_deploy'))
     except RuntimeError as exc:
         # All messages above are fixed diagnostics; no URLs carrying credentials.
         raise SystemExit(str(exc)) from None
