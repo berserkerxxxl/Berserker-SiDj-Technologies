@@ -141,6 +141,10 @@ class PortfolioTests(unittest.TestCase):
                         "finding": "Улучшить сообщения",
                         "recommendation": "Добавить тест",
                         "severity": "низкий",
+                        "intent": "Проверяет локальное поведение по назначению",
+                        "impact": "Реальный сценарий сбоя может влиять на работу",
+                        "counterargument": "Ограничение может быть частью защиты системы",
+                        "decision": "исправить",
                         "evidence": "public source"
                     })}}],
                 }
@@ -167,6 +171,10 @@ class PortfolioTests(unittest.TestCase):
                         "finding": "Синтаксическая ошибка",
                         "recommendation": "Исправить CSS",
                         "severity": "низкий",
+                        "intent": "Проверяет локальное поведение по назначению",
+                        "impact": "Реальный сценарий сбоя может влиять на работу",
+                        "counterargument": "Ограничение может быть частью защиты системы",
+                        "decision": "исправить",
                         "evidence": ".visits-error{colo"
                     })}}]
                 }
@@ -191,6 +199,10 @@ class PortfolioTests(unittest.TestCase):
                         "finding": "Избыточная проверка",
                         "recommendation": "Добавить ограничение",
                         "severity": "низкий",
+                        "intent": "Проверяет локальное поведение по назначению",
+                        "impact": "Реальный сценарий сбоя может влиять на работу",
+                        "counterargument": "Ограничение может быть частью защиты системы",
+                        "decision": "исправить",
                         "evidence": evidence,
                     })}
                 }]}
@@ -217,6 +229,10 @@ class PortfolioTests(unittest.TestCase):
                         "finding": "Проверить таймаут",
                         "recommendation": "Добавить тест",
                         "severity": "низкий",
+                        "intent": "Проверяет локальное поведение по назначению",
+                        "impact": "Реальный сценарий сбоя может влиять на работу",
+                        "counterargument": "Ограничение может быть частью защиты системы",
+                        "decision": "исправить",
                         "evidence": "const timeout = 25;",
                     })}}
                 )
@@ -236,6 +252,10 @@ class PortfolioTests(unittest.TestCase):
                     "finding": "Замечаний нет",
                     "recommendation": "Продолжать проверку",
                     "severity": "нет замечаний",
+                    "intent": "Проверяет локальное поведение по назначению",
+                    "impact": "Реальный сценарий сбоя может влиять на работу",
+                    "counterargument": "Ограничение может быть частью защиты системы",
+                    "decision": "нет замечаний",
                     "evidence": "const timeout = 25;" if len(calls) == 1 else "",
                 })}}]}
                 return io.BytesIO(json.dumps(response).encode("utf-8"))
@@ -260,6 +280,62 @@ class PortfolioTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "после двух попыток"):
                 ai.free_review("const timeout = 25;", "file.js", "B/S", "fake-key")
         self.assertEqual(len(calls), 2)
+
+    def test_reasoning_is_required_for_real_ai_reports(self):
+        calls = []
+        class FakeOpener:
+            def open(self, req, timeout):
+                calls.append(json.loads(req.data))
+                response = {"choices": [{"message": {"content": json.dumps({
+                    "finding": "Проблема с конфигурацией",
+                    "recommendation": "Добавить тест",
+                    "severity": "низкий",
+                    "evidence": "const timeout = 25;",
+                })}}]}
+                return io.BytesIO(json.dumps(response).encode("utf-8"))
+        with patch.object(ai, "build_opener", return_value=FakeOpener()):
+            with self.assertRaisesRegex(ValueError, "после двух попыток"):
+                ai.free_review("const timeout = 25;", "index.js", "sidj", "fake-key")
+        self.assertEqual(len(calls), 2)
+        self.assertIn("Design context:", calls[0]["messages"][1]["content"])
+        self.assertIn("private chat", calls[0]["messages"][1]["content"])
+
+    def test_thoughtful_no_finding_is_valid(self):
+        class FakeOpener:
+            def open(self, req, timeout):
+                response = {"choices": [{"message": {"content": json.dumps({
+                    "finding": "Подтверждённых проблем не выявлено",
+                    "recommendation": "Изменений не требуется",
+                    "severity": "нет замечаний",
+                    "evidence": "",
+                    "intent": "Проверяет ограничение доступа к локальному сервису",
+                    "impact": "Нет подтверждённого сбоя при обычном сценарии",
+                    "counterargument": "Ослабление ограничения может ухудшить безопасность",
+                    "decision": "нет замечаний",
+                }, ensure_ascii=False)}}]}
+                return io.BytesIO(json.dumps(response).encode("utf-8"))
+        with patch.object(ai, "build_opener", return_value=FakeOpener()):
+            analysis, _ = ai.free_review("127.0.0.1:12345", "main.go", "reserve", "fake-key")
+        self.assertEqual(analysis["decision"], "нет замечаний")
+        self.assertEqual(analysis["evidence"], "")
+
+    def test_conflicting_severity_and_decision_rejected(self):
+        class FakeOpener:
+            def open(self, req, timeout):
+                response = {"choices": [{"message": {"content": json.dumps({
+                    "finding": "Проблема",
+                    "recommendation": "Проверить",
+                    "severity": "нет замечаний",
+                    "evidence": "",
+                    "intent": "Проверяет существующее поведение сервиса",
+                    "impact": "Потенциальный сценарий требует проверки",
+                    "counterargument": "Существующее поведение может быть намеренным",
+                    "decision": "исправить",
+                }, ensure_ascii=False)}}]}
+                return io.BytesIO(json.dumps(response).encode("utf-8"))
+        with patch.object(ai, "build_opener", return_value=FakeOpener()):
+            with self.assertRaisesRegex(ValueError, "Противоречие"):
+                ai.free_review("const timeout = 25;", "file.js", "site", "fake-key")
 
     def test_denies_non_free_model(self):
         with patch.object(ai, "FREE_MODELS", ("expensive/model",)):
