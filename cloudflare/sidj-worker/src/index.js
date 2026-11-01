@@ -1,6 +1,7 @@
 // B/S tech · СиДжи. No credentials, queues or paid storage in the source tree.
 import snapshot from "../../../automation/sidj_projects.json" with { type: "json" };
 import { adminRoute } from "./setup.js";
+import { auditMenu, auditAction } from "./audit.js";
 import { allowRate, rateKey, diagnostic, githubJSON } from "./resilience.js";
 import {
   REPO, API, RAW, BOT_USERNAME, MAX_ATTACHMENT, PublicError, response, checkConfig,
@@ -12,11 +13,12 @@ export const COMMANDS = [
   ["start", "Приветствие и возможности"], ["projects", "Все программы B/S tech"],
   ["project", "Описание выбранной программы"], ["download", "Скачать программу в Telegram"],
   ["status", "Состояние всех проектов"], ["builds", "Последние сборки программ"],
-  ["errors", "Ошибки сборок"], ["pr", "Открытые Pull Request"], ["help", "Справка на русском"],
+  ["errors", "Ошибки сборок"], ["pr", "Открытые Pull Request"],
+  ["audit", "Запустить ИИ-проверку выбранных проектов"], ["help", "Справка на русском"],
 ].map(([command, description]) => ({ command, description }));
 const HELP = "🤖 СиДжи | B/S tech\n\n/projects — каталог разработок\n/project — описание программы\n" +
   "/download — получить файл\n/status — состояние проектов\n/builds — последние сборки\n" +
-  "/errors — ошибки сборок\n/pr — открытые PR и результаты тестов\n/help — справка\n\n⚡ Ответы через Cloudflare.\n🔒 Только личный чат владельца.";
+  "/errors — ошибки сборок\n/pr — открытые PR и результаты тестов\n/audit — выбор проектов для ИИ-аудита\n/help — справка\n\n⚡ Ответы через Cloudflare.\n🔒 Только личный чат владельца.";
 const projectRows = projects => projects.map(p => [{ text: p.name, callback_data: "p:" + p.id }]);
 // Performance optimizations only, never the authorization boundary.
 const jsonCache = new Map(), completed = new Map(), inFlight = new Map();
@@ -278,6 +280,7 @@ async function command(env, text) {
   if (["/start", "/help"].includes(name)) return say(env, HELP, [
     [{ text: "📂 Все проекты", callback_data: "projects" }], [{ text: "📥 Скачать", callback_data: "downloads" }],
     [{ text: "📋 Открытые PR", callback_data: "pr" }],
+    [{ text: "🎓 Профессор · ИИ-аудит", callback_data: "audit" }],
   ]);
   if (name === "/projects") return showProjects(env);
   if (name === "/project") return showProject(env, (words[1] || "").toLowerCase());
@@ -289,6 +292,7 @@ async function command(env, text) {
   if (name === "/builds") return recent(env, false);
   if (name === "/errors") return recent(env, true);
   if (name === "/pr") return showPR(env);
+  if (name === "/audit") return auditMenu(env, 0, say);
   return say(env, "Напиши /help или выбери программу в /projects.");
 }
 
@@ -301,6 +305,7 @@ async function handleUpdate(env, body) {
   catch { /* Best effort; the actual answer below is still awaited. */ }
   if (["projects", "downloads"].includes(cb.data)) return showProjects(env);
   if (cb.data === "pr") return showPR(env);
+  if (cb.data === "audit" || cb.data.startsWith("a:")) return auditAction(env, cb.data, say);
   if (/^p:[a-z0-9_]{1,24}$/.test(cb.data)) return showProject(env, cb.data.slice(2));
   if (/^d:[a-z0-9_]{1,24}:[a-z0-9_]{1,24}$/.test(cb.data)) return sendFile(env, ...cb.data.split(":").slice(1));
   return say(env, "Кнопка устарела. Открой /projects.");

@@ -45,6 +45,9 @@ async function fixture(options = {}) {
       return new Response(bytes);
     }
     if (parsed.hostname === "api.github.com") {
+      if (init.method === "POST" && parsed.pathname.endsWith("/dispatches")) {
+        return options.dispatchResponse ? options.dispatchResponse(url, init) : new Response(null, { status: 204 });
+      }
       if (options.githubError) return json({}, 403);
       if (parsed.pathname.endsWith("/pulls")) return json(options.prs || []);
       if (parsed.pathname.endsWith("/check-runs")) return json({ check_runs: options.prChecks || [] });
@@ -411,6 +414,60 @@ test("protected menu refresh only calls setMyCommands and leaves webhook unchang
   assert.equal((await g.admin("commands")).status, 409);
   assert.ok(!g.tg.some(t => t.method === "setMyCommands"));
   assert.equal((await g.admin("commands", { Authorization: "Bearer wrong" })).status, 403);
+});
+
+
+test("audit menu supports selecting 7 B/S projects and only owner private G/F", async () => {
+  assert.equal(COMMANDS.filter(c => c.command === "audit").length, 1);
+  const f = await fixture();
+  assert.equal((await f.send(message("/audit"))).status, 200);
+  let out = f.tg.at(-1).data;
+  assert.match(out.text, /Профессор/);
+  assert.equal(out.reply_markup.inline_keyboard.flat().filter(x=>x.callback_data?.startsWith("a:t:")).length, 8);
+  assert.ok(out.reply_markup.inline_keyboard.flat().some(x=>x.callback_data==="a:s:255"));
+  assert.equal((await f.send(callback("a:t:0:0"))).status, 200);
+  assert.match(f.tg.at(-1).data.text, /Выбрано: 1/);
+  assert.equal((await f.send(callback("a:s:128"))).status, 200);
+  assert.match(f.tg.at(-1).data.text, /Выбрано: 1/);
+  assert.ok(f.tg.at(-1).data.reply_markup.inline_keyboard.flat().some(b => b.text.includes("G/F Storm")));
+});
+test("audit requires confirmation and tokens; never dispatches to arbitrary repository", async () => {
+  const f = await fixture();
+  assert.equal((await f.send(callback("a:c:1"))).status, 200);
+  assert.equal(f.calls.filter(x=>x.url.includes("/dispatches")).length, 0);
+  assert.equal((await f.send(callback("a:go:1"))).status, 200);
+  assert.equal(f.calls.filter(x=>x.url.includes("/dispatches")).length, 0);
+  assert.match(f.tg.at(-1).data.text, /не настроен/);
+  assert.equal((await f.send(callback("a:go:99999"))).status, 200);
+  assert.equal(f.calls.filter(x=>x.url.includes("/dispatches")).length, 0);
+});
+test("audit dispatches only selected matrix projects and does not expose tokens", async () => {
+  const f = await fixture();
+  const e = { ...env, SIDJ_AUDIT_PUBLIC_TOKEN: "unit-test-public-token" };
+  assert.equal((await f.send(callback("a:go:17"), {}, e)).status, 200);
+  const dispatch = f.calls.filter(x=>x.url.endsWith("/dispatches"));
+  assert.equal(dispatch.length, 1);
+  assert.equal(dispatch[0].init.headers.Authorization, "Bearer unit-test-public-token");
+  assert.deepEqual(JSON.parse(dispatch[0].init.body), {ref:"main",inputs:{projects:"sidj,limits"}});
+  assert.match(f.tg.at(-1).data.text, /отправлен/);
+  assert.ok(!f.tg.at(-1).data.text.includes("unit-test-public-token"));
+});
+test("only owner private G/F repo can be dispatched; Alex is not addressable", async () => {
+  const f = await fixture();
+  const e = { ...env, SIDJ_AUDIT_OWNER_TOKEN:"owner-secret",
+    SIDJ_AUDIT_ALEX_TOKEN:"should-never-be-used",
+    SIDJ_AUDIT_ALEX_REPO:"Alekseym1507/GF-Storm-ID",
+    SIDJ_AUDIT_OWNER_REPO:"evil.example/untrusted" };
+  assert.equal((await f.send(callback("a:go:128"), {}, e)).status, 200);
+  const dispatch = f.calls.filter(x=>x.url.endsWith("/dispatches"));
+  assert.equal(dispatch.length, 1);
+  assert.ok(dispatch[0].url.includes("/berserkerxxxl/GF-Storm-ID/"));
+  assert.equal(dispatch[0].init.headers.Authorization, "Bearer owner-secret");
+  assert.ok(!dispatch[0].url.includes("Alekseym1507"));
+  assert.deepEqual(JSON.parse(dispatch[0].init.body), {ref:"main",inputs:{scope:"source"}});
+  const other = await fixture();
+  assert.equal((await other.send(callback("a:go:256"),{},e)).status,200);
+  assert.equal(other.calls.filter(x=>x.url.endsWith("/dispatches")).length,0);
 });
 
 test("Moscow times use 24-hour format across a date boundary", () => {
