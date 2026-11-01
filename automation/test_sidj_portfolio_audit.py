@@ -145,6 +145,8 @@ class PortfolioTests(unittest.TestCase):
                         "impact": "Реальный сценарий сбоя может влиять на работу",
                         "counterargument": "Ограничение может быть частью защиты системы",
                         "decision": "исправить",
+                        "confidence": "высокая",
+                        "verification": "Сравнить поведение до и после изменения в тестовом сценарии",
                         "evidence": "public source"
                     })}}],
                 }
@@ -177,6 +179,8 @@ class PortfolioTests(unittest.TestCase):
                         "impact": "Реальный сценарий сбоя может влиять на работу",
                         "counterargument": "Ограничение может быть частью защиты системы",
                         "decision": "исправить",
+                        "confidence": "высокая",
+                        "verification": "Сравнить поведение до и после изменения в тестовом сценарии",
                         "evidence": ".visits-error{colo"
                     })}}]
                 }
@@ -205,6 +209,8 @@ class PortfolioTests(unittest.TestCase):
                         "impact": "Реальный сценарий сбоя может влиять на работу",
                         "counterargument": "Ограничение может быть частью защиты системы",
                         "decision": "исправить",
+                        "confidence": "высокая",
+                        "verification": "Сравнить поведение до и после изменения в тестовом сценарии",
                         "evidence": evidence,
                     })}
                 }]}
@@ -237,6 +243,8 @@ class PortfolioTests(unittest.TestCase):
                         "impact": "Реальный сценарий сбоя может влиять на работу",
                         "counterargument": "Ограничение может быть частью защиты системы",
                         "decision": "исправить",
+                        "confidence": "высокая",
+                        "verification": "Сравнить поведение до и после изменения в тестовом сценарии",
                         "evidence": "const timeout = 25;",
                     })}}
                 )
@@ -260,6 +268,8 @@ class PortfolioTests(unittest.TestCase):
                     "impact": "Реальный сценарий сбоя может влиять на работу",
                     "counterargument": "Ограничение может быть частью защиты системы",
                     "decision": "нет замечаний",
+                    "confidence": "средняя",
+                    "verification": "Сравнить поведение до и после изменения в тестовом сценарии",
                     "evidence": "const timeout = 25;" if len(calls) == 1 else "",
                 })}}]}
                 return io.BytesIO(json.dumps(response).encode("utf-8"))
@@ -316,6 +326,8 @@ class PortfolioTests(unittest.TestCase):
                     "impact": "Нет подтверждённого сбоя при обычном сценарии",
                     "counterargument": "Ослабление ограничения может ухудшить безопасность",
                     "decision": "нет замечаний",
+                    "confidence": "средняя",
+                    "verification": "Сравнить поведение до и после изменения в тестовом сценарии",
                 }, ensure_ascii=False)}}]}
                 return io.BytesIO(json.dumps(response).encode("utf-8"))
         with patch.object(ai, "build_opener", return_value=FakeOpener()):
@@ -335,6 +347,8 @@ class PortfolioTests(unittest.TestCase):
                     "impact": "Потенциальный сценарий требует проверки",
                     "counterargument": "Существующее поведение может быть намеренным",
                     "decision": "исправить",
+                    "confidence": "высокая",
+                    "verification": "Сравнить поведение до и после изменения в тестовом сценарии",
                 }, ensure_ascii=False)}}]}
                 return io.BytesIO(json.dumps(response).encode("utf-8"))
         with patch.object(ai, "build_opener", return_value=FakeOpener()):
@@ -365,6 +379,8 @@ class PortfolioTests(unittest.TestCase):
                                 "impact": "Некорректное значение может нарушить работу",
                                 "counterargument": "Ограничение может быть намеренной защитой",
                                 "decision": "наблюдать",
+                                "confidence": "средняя",
+                                "verification": "Сравнить поведение до и после изменения в тестовом сценарии",
                             }, ensure_ascii=False)}})
                 return io.BytesIO(json.dumps({"choices": [response]}).encode("utf-8"))
 
@@ -397,6 +413,8 @@ class PortfolioTests(unittest.TestCase):
                               "impact": "Ошибка изменяет результат последующего вызова",
                               "counterargument": "Значение может быть намеренным ограничением",
                               "decision": "исправить",
+                              "confidence": "высокая",
+                              "verification": "Сравнить поведение до и после изменения в тестовом сценарии",
                           }, ensure_ascii=False)}})
                 return io.BytesIO(json.dumps({"choices": [output]}).encode("utf-8"))
         with patch.object(ai, "build_opener", return_value=FakeOpener()):
@@ -423,6 +441,8 @@ class PortfolioTests(unittest.TestCase):
                     "impact": "Нет подтверждённого сбоя при обычном сценарии",
                     "counterargument": "Изменение может ослабить защиту приложения",
                     "decision": "нет замечаний",
+                    "confidence": "средняя",
+                    "verification": "Сравнить поведение до и после изменения в тестовом сценарии",
                 }, ensure_ascii=False)}}]}
                 return io.BytesIO(json.dumps(response).encode("utf-8"))
         with patch.object(ai, "build_opener", return_value=FakeOpener()):
@@ -437,6 +457,80 @@ class PortfolioTests(unittest.TestCase):
         self.assertEqual(excerpt, "const first = 1;\n")
         self.assertTrue(excerpt.endswith("\n"))
         self.assertEqual(ai.retry_excerpt("x" * ai.MAX_SOURCE), "x" * ai.MAX_SOURCE)
+
+    def test_professor_observation_has_reproducible_test(self):
+        calls = []
+        class FakeOpener:
+            def open(self, req, timeout):
+                calls.append(json.loads(req.data))
+                result = {"choices": [{"message": {"content": json.dumps({
+                    "finding": "Сканирование DOM может быть дорогим",
+                    "recommendation": "Замерить время поиска в профилировщике",
+                    "severity": "средний",
+                    "evidence": "for(const target of document.querySelectorAll('body *'))",
+                    "intent": "Поиск боковой панели в интерфейсе",
+                    "impact": "Большой DOM может замедлить один поиск панели",
+                    "counterargument": "Поиск работает не постоянно и кэширует элемент",
+                    "decision": "наблюдать",
+                    "confidence": "средняя",
+                    "verification": "Измерить длительность findNav при 5000 элементах DOM",
+                }, ensure_ascii=False)}}]}
+                return io.BytesIO(json.dumps(result).encode("utf-8"))
+        source = "for(const target of document.querySelectorAll('body *')) {"
+        with patch.object(ai, "build_opener", return_value=FakeOpener()):
+            analysis, _ = ai.free_review(source, "limits.js", "B/S", "fake-key")
+        self.assertEqual(analysis["decision"], "наблюдать")
+        self.assertEqual(analysis["confidence"], "средняя")
+        self.assertIn("findNav", analysis["verification"])
+        self.assertEqual(len(calls), 1)
+        self.assertIn("verification", calls[0]["messages"][0]["content"])
+        self.assertIn("MANUAL test", calls[0]["messages"][0]["content"])
+
+    def test_professor_weak_fix_is_rejected_on_both_attempts(self):
+        calls = []
+        class FakeOpener:
+            def open(self, req, timeout):
+                calls.append(json.loads(req.data))
+                response = {"choices": [{"message": {"content": json.dumps({
+                    "finding": "Может замедлять страницу",
+                    "recommendation": "Переписать поиск",
+                    "severity": "средний",
+                    "evidence": "const timeout = 25;",
+                    "intent": "Контролирует ожидание ответа в программе",
+                    "impact": "В отдельных случаях возможна задержка",
+                    "counterargument": "Таймаут защищает от зависших запросов",
+                    "decision": "исправить",
+                    "confidence": "низкая",
+                    "verification": "Померить время ожидания для десяти запросов",
+                }, ensure_ascii=False)}}]}
+                return io.BytesIO(json.dumps(response).encode("utf-8"))
+        with patch.object(ai, "build_opener", return_value=FakeOpener()):
+            with self.assertRaisesRegex(ValueError, "Категоричное исправление без высокой уверенности"):
+                ai.free_review("const timeout = 25;", "file.js", "B/S", "fake-key")
+        self.assertEqual(len(calls), 2)
+
+    def test_professor_missing_verification_is_rejected(self):
+        calls = []
+        class FakeOpener:
+            def open(self, req, timeout):
+                calls.append(1)
+                response = {"choices": [{"message": {"content": json.dumps({
+                    "finding": "Возможная ошибка",
+                    "recommendation": "Проверить",
+                    "severity": "низкий",
+                    "evidence": "const timeout = 25;",
+                    "intent": "Контролирует ожидание ответа в программе",
+                    "impact": "Запрос может завершиться преждевременно",
+                    "counterargument": "Таймаут мог быть выбран намеренно",
+                    "decision": "наблюдать",
+                    "confidence": "средняя",
+                    "verification": "",
+                }, ensure_ascii=False)}}]}
+                return io.BytesIO(json.dumps(response).encode("utf-8"))
+        with patch.object(ai, "build_opener", return_value=FakeOpener()):
+            with self.assertRaisesRegex(ValueError, "проверку"):
+                ai.free_review("const timeout = 25;", "file.js", "B/S", "fake-key")
+        self.assertEqual(len(calls), 2)
 
     def test_denies_non_free_model(self):
         with patch.object(ai, "FREE_MODELS", ("expensive/model",)):

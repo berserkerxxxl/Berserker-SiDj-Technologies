@@ -173,7 +173,7 @@ def parse_analysis(raw: str) -> dict:
         raise ValueError("Некорректная цитата из исходного кода")
     # Parsing is backward compatible, but live model reviews require every
     # reasoning field (enforced in free_review before publishing any finding).
-    for field in ("intent", "impact", "counterargument", "decision"):
+    for field in ("intent", "impact", "counterargument", "decision", "confidence", "verification"):
         if field in data and not isinstance(data[field], str):
             raise ValueError("Некорректное поле рассуждения: " + field)
     return {
@@ -185,6 +185,8 @@ def parse_analysis(raw: str) -> dict:
         "impact": safe_text(data.get("impact"), 200),
         "counterargument": safe_text(data.get("counterargument"), 200),
         "decision": safe_text(data.get("decision"), 25),
+        "confidence": safe_text(data.get("confidence"), 20),
+        "verification": safe_text(data.get("verification"), 180),
     }
 
 
@@ -222,7 +224,13 @@ def free_review(source: str, path: str, project: str, key: str) -> tuple[dict, s
         "If harm cannot be established, say no issues; never force a finding. "
         "Reply ONLY with one short Russian JSON object with keys: "
         "finding, recommendation, severity, evidence, intent, impact, "
-        "counterargument, decision. Allowed severity: низкий, средний, "
+        "counterargument, decision, confidence, verification. "
+        "Confidence is your UNCERTAIN judgment: низкая, средняя, высокая. "
+        "Say высокая ONLY if the given source proves a concrete failure; "
+        "otherwise choose наблюдать/отклонить/нет замечаний, not исправить. "
+        "Verification is a short, specific MANUAL test to distinguish a "
+        "real defect from intentional code; NEVER claim to have run it. "
+        "Allowed severity: низкий, средний, "
         "высокий, нет замечаний. Allowed decision: исправить, наблюдать, "
         "отклонить, нет замечаний. Keep each explanation under 120 chars. "
         "For an issue, evidence is an EXACT contiguous 12-160 character "
@@ -231,7 +239,8 @@ def free_review(source: str, path: str, project: str, key: str) -> tuple[dict, s
         "finding='Подтверждённых проблем не выявлено', "
         "recommendation='Изменений не требуется'. "
         "Always give brief intent, impact and counterargument, even if no issue. "
-        "No Markdown, no hidden analysis, no exhaustive-coverage claims."
+        "No Markdown, no hidden analysis, no exhaustive-coverage claims. "
+        "Explicitly distinguish source evidence from hypotheses."
     )
     context = PROJECT_CONTEXT.get(
         next((code for code, (name, _) in PROJECTS.items()
@@ -253,7 +262,7 @@ def free_review(source: str, path: str, project: str, key: str) -> tuple[dict, s
         if attempt:
             instruction = (
                 "Previous result was truncated or invalid. Give ONLY a SHORT "
-                "JSON object with all eight keys. If unsure, report no issue. "
+                "JSON object with all ten keys. If unsure, report no issue. "
                 "Evidence must be an exact complete source quote.\n"
                 + instruction
             )
@@ -306,9 +315,13 @@ def free_review(source: str, path: str, project: str, key: str) -> tuple[dict, s
             analysis = parse_analysis(answer.get("content") if isinstance(answer, dict) else None)
             if analysis["decision"] not in ("исправить", "наблюдать", "отклонить", "нет замечаний"):
                 raise ValueError("Отсутствует осмысленный вердикт")
+            if analysis["confidence"] not in ("низкая", "средняя", "высокая"):
+                raise ValueError("Не указана степень уверенности")
             if any(len(analysis[field]) < 12 for field in
-                   ("intent", "impact", "counterargument")):
-                raise ValueError("ИИ не оценил назначение, последствия и альтернативу")
+                   ("intent", "impact", "counterargument", "verification")):
+                raise ValueError("ИИ не объяснил назначение, последствия, альтернативу или проверку")
+            if analysis["decision"] == "исправить" and analysis["confidence"] != "высокая":
+                raise ValueError("Категоричное исправление без высокой уверенности")
             is_clear = analysis["severity"] == "нет замечаний"
             if is_clear != (analysis["decision"] == "нет замечаний"):
                 raise ValueError("Противоречие между важностью и вердиктом")
@@ -346,7 +359,8 @@ def audit(project: str) -> int:
         "project": project, "name": label, "source": "", "partial": True,
         "status": "unavailable", "finding": "", "recommendation": "",
         "severity": "", "intent": "", "impact": "", "counterargument": "",
-        "decision": "", "model": "", "run_url": action_url(),
+        "decision": "", "confidence": "", "verification": "",
+        "model": "", "run_url": action_url(),
     }
     try:
         source, path, partial = read_source(project, rotation)
@@ -410,6 +424,8 @@ def notify(project: str) -> None:
                  "🔬 Последствия: " + safe_text(report.get("impact"), 200),
                  "🛡️ Проверка альтернативы: " + safe_text(report.get("counterargument"), 200),
                  "⚖️ Вердикт: " + safe_text(report.get("decision"), 25),
+                 "🧪 Как проверить (не выполнялось): " + safe_text(report.get("verification"), 180),
+                 "📊 Уверенность ИИ: " + safe_text(report.get("confidence"), 20),
                  "Важность: " + safe_text(report.get("severity"), 20),
                  "Модель: " + safe_text(report.get("model"), 100)]
         if report.get("evidence"):
