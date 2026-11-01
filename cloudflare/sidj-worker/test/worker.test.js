@@ -429,7 +429,7 @@ test("audit menu supports selecting individual projects, all, and both private c
   assert.match(f.tg.at(-1).data.text, /Выбрано: 1/);
   assert.equal((await f.send(callback("a:s:384"))).status, 200);
   assert.match(f.tg.at(-1).data.text, /Выбрано: 2/);
-  assert.match(f.tg.at(-1).data.text, /G\/F Storm/);
+  assert.ok(f.tg.at(-1).data.reply_markup.inline_keyboard.flat().some(b => b.text.includes("G/F Storm")));
 });
 test("audit requires confirmation and tokens; never dispatches to arbitrary repository", async () => {
   const f = await fixture();
