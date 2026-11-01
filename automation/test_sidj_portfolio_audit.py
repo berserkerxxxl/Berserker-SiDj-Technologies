@@ -159,6 +159,8 @@ class PortfolioTests(unittest.TestCase):
         self.assertEqual(requests[0]["route"], "fallback")
         self.assertEqual(requests[0]["response_format"], {"type": "json_object"})
         self.assertEqual(requests[0]["max_tokens"], 3600)
+        self.assertEqual(requests[0]["reasoning"], {"max_tokens": ai.REASONING_BUDGET[0]})
+        self.assertLess(ai.RETRY_SOURCE, ai.MAX_SOURCE)
         self.assertNotIn("api_key", requests[0])
         self.assertNotIn("authorization", requests[0])
         self.assertNotIn("secret", requests[0])
@@ -215,6 +217,8 @@ class PortfolioTests(unittest.TestCase):
         self.assertEqual(calls[1]["model"], ai.FREE_MODELS[1])
         self.assertTrue(all(model.endswith(":free") for call in calls for model in call["models"]))
         self.assertTrue(all(call["max_tokens"] == 3600 for call in calls))
+        self.assertEqual(calls[0]["reasoning"], {"max_tokens": ai.REASONING_BUDGET[0]})
+        self.assertEqual(calls[1]["reasoning"], {"max_tokens": ai.REASONING_BUDGET[1]})
 
     def test_truncated_first_answer_succeeds_on_retry(self):
         source = "const timeout = 25;\n"
@@ -336,6 +340,103 @@ class PortfolioTests(unittest.TestCase):
         with patch.object(ai, "build_opener", return_value=FakeOpener()):
             with self.assertRaisesRegex(ValueError, "Противоречие"):
                 ai.free_review("const timeout = 25;", "file.js", "site", "fake-key")
+
+    def test_retry_uses_smaller_complete_source_and_exact_evidence(self):
+        source = "const checked = 1;\n" + "".join(
+            f"const field_{i} = {i};\\n" for i in range(350)).replace("\\n", "\n")
+        self.assertGreater(len(source), ai.MAX_SOURCE)
+        source = source[:ai.MAX_SOURCE]
+        # Use full-line source as real source_windows would provide.
+        source = source[:source.rfind("\n") + 1]
+        calls = []
+
+        class FakeOpener:
+            def open(self, req, timeout):
+                payload = json.loads(req.data)
+                calls.append(payload)
+                response = ({"finish_reason": "length", "message": {"content": ""}}
+                            if len(calls) == 1 else
+                            {"finish_reason": "stop", "message": {"content": json.dumps({
+                                "finding": "Проверка требует теста",
+                                "recommendation": "Добавить точечный тест",
+                                "severity": "низкий",
+                                "evidence": "const checked = 1;",
+                                "intent": "Сохраняет локальные значения исходного кода",
+                                "impact": "Некорректное значение может нарушить работу",
+                                "counterargument": "Ограничение может быть намеренной защитой",
+                                "decision": "наблюдать",
+                            }, ensure_ascii=False)}})
+                return io.BytesIO(json.dumps({"choices": [response]}).encode("utf-8"))
+
+        with patch.object(ai, "build_opener", return_value=FakeOpener()):
+            result, _ = ai.free_review(source, "file.js", "B/S", "fake-key")
+        self.assertEqual(len(calls), 2)
+        first = calls[0]["messages"][1]["content"]
+        second = calls[1]["messages"][1]["content"]
+        self.assertIn(source, first)
+        self.assertLess(len(second), len(first))
+        self.assertIn("const checked = 1;\n", second)
+        self.assertTrue(result["_retry_excerpt"])
+        self.assertEqual(result["decision"], "наблюдать")
+
+    def test_retry_rejects_evidence_missing_from_reduced_excerpt(self):
+        source = ("const before = 1;\n" * 300) + "const hidden = 99;\n"
+        calls = []
+
+        class FakeOpener:
+            def open(self, req, timeout):
+                calls.append(json.loads(req.data))
+                output = ({"finish_reason": "length", "message": {"content": ""}}
+                          if len(calls) == 1 else
+                          {"finish_reason": "stop", "message": {"content": json.dumps({
+                              "finding": "Проблема",
+                              "recommendation": "Исправить",
+                              "severity": "низкий",
+                              "evidence": "const hidden = 99;",
+                              "intent": "Управляет локальными значениями настройки",
+                              "impact": "Ошибка изменяет результат последующего вызова",
+                              "counterargument": "Значение может быть намеренным ограничением",
+                              "decision": "исправить",
+                          }, ensure_ascii=False)}})
+                return io.BytesIO(json.dumps({"choices": [output]}).encode("utf-8"))
+        with patch.object(ai, "build_opener", return_value=FakeOpener()):
+            with self.assertRaisesRegex(ValueError, "не подтверждается исходным кодом"):
+                ai.free_review(source, "file.js", "B/S", "fake-key")
+        self.assertEqual(len(calls), 2)
+
+    def test_transient_http_429_retries_free_model_once(self):
+        from urllib.error import HTTPError
+
+        calls = []
+        class FakeOpener:
+            def open(self, req, timeout):
+                payload = json.loads(req.data)
+                calls.append(payload)
+                if len(calls) == 1:
+                    raise HTTPError(req.full_url, 429, "Too Many Requests", {}, None)
+                response = {"choices": [{"message": {"content": json.dumps({
+                    "finding": "Подтверждённых проблем не выявлено",
+                    "recommendation": "Изменений не требуется",
+                    "severity": "нет замечаний",
+                    "evidence": "",
+                    "intent": "Ограничивает работу программы локальным сценарием",
+                    "impact": "Нет подтверждённого сбоя при обычном сценарии",
+                    "counterargument": "Изменение может ослабить защиту приложения",
+                    "decision": "нет замечаний",
+                }, ensure_ascii=False)}}]}
+                return io.BytesIO(json.dumps(response).encode("utf-8"))
+        with patch.object(ai, "build_opener", return_value=FakeOpener()):
+            result, _ = ai.free_review("const timeout = 25;\n", "file.js", "B/S", "fake-key")
+        self.assertEqual(len(calls), 2)
+        self.assertTrue(all(model.endswith(":free") for call in calls for model in call["models"]))
+        self.assertEqual(result["decision"], "нет замечаний")
+
+    def test_retry_excerpt_never_splits_an_identifier(self):
+        source = "const first = 1;\n" + "x" * ai.MAX_SOURCE + "\n"
+        excerpt = ai.retry_excerpt(source)
+        self.assertEqual(excerpt, "const first = 1;\n")
+        self.assertTrue(excerpt.endswith("\n"))
+        self.assertEqual(ai.retry_excerpt("x" * ai.MAX_SOURCE), "x" * ai.MAX_SOURCE)
 
     def test_denies_non_free_model(self):
         with patch.object(ai, "FREE_MODELS", ("expensive/model",)):
