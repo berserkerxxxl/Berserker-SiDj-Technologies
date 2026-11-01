@@ -224,7 +224,8 @@ def free_review(source: str, path: str, project: str, key: str) -> tuple[dict, s
     source_prompt = (
         "Project: " + project + "\nFile: " + path
         + "\nDesign context: " + PROJECT_CONTEXT.get(
-            {"B/S SiDj — Telegram-бот": "sidj"}.get(project, project),
+            next((key for key, (name, _) in PROJECTS.items()
+                  if name == project), project),
             "Read-only audit. Source may be partial."
         )
         + "\nPartial source for read-only review:\n" + source
