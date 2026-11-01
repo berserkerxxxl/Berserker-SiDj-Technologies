@@ -10,11 +10,11 @@ export const AUDIT_PROJECTS = Object.freeze([
   ["site","Сайт B/S tech"],
   ["codex","B/S Codex Installer"],
   ["gf_owner","G/F Storm ID — моя копия"],
-  ["gf_alex","G/F Storm ID — копия Алексея"],
 ]);
 const ALL=(1<<AUDIT_PROJECTS.length)-1;
 const BS=(1<<7)-1;
-const GF=ALL ^ BS;
+const GF=1<<7;
+const PRIVATE_REPO="berserkerxxxl/GF-Storm-ID";
 const MAIN="berserkerxxxl/Berserker-SiDj-Technologies";
 const NAME = new RegExp("^[A-Za-z0-9][A-Za-z0-9_.-]{0,99}/[A-Za-z0-9][A-Za-z0-9_.-]{0,99}$");
 const selected=mask=>AUDIT_PROJECTS.flatMap(([id,label],i)=>mask&(1<<i)?[[id,label]]:[]);
@@ -29,14 +29,14 @@ export function auditMenu(env,mask,say){
       return {text:(mask&(1<<k)?"☑️ ":"▫️ ")+label.slice(0,29),callback_data:"a:t:"+k+":"+mask};
     }));
   }
-  rows.push([{text:"✅ Все 9",callback_data:"a:s:"+ALL},
+  rows.push([{text:"✅ Все 8",callback_data:"a:s:"+ALL},
     {text:"B/S tech (7)",callback_data:"a:s:"+BS},
-    {text:"G/F (2)",callback_data:"a:s:"+GF}]);
+    {text:"G/F (1)",callback_data:"a:s:"+GF}]);
   rows.push([{text:"🧹 Снять выбор",callback_data:"a:s:0"},
     {text:"🎓 Проверить выбранные ("+selected(mask).length+")",callback_data:"a:c:"+mask}]);
   return say(env,"🎓 Профессор · выборочный ИИ-аудит\nВыбрано: "+selected(mask).length+
     " из "+AUDIT_PROJECTS.length+
-    "\n\nМожно выбрать отдельные программы или все. Две копии G/F проверяются независимо."+
+    "\n\nМожно выбрать отдельные программы или все. G/F проверяется только в твоём аккаунте."+
     "\n🔒 Приватный код обрабатывается OpenRouter только после настройки отдельных ключей."+
     "\n📌 Проверяются фрагменты исходников, не весь проект целиком.",rows);
 }
@@ -65,8 +65,7 @@ async function auditRun(env,mask,say) {
   const codes=chosen.filter(([id])=>!id.startsWith("gf_")).map(([id])=>id);
   const groups=[
     ...(codes.length?[["B/S tech",MAIN,env.SIDJ_AUDIT_PUBLIC_TOKEN,"sidj-portfolio-ai-review.yml",{projects:codes.join(",")}]]:[]),
-    ...(mask&(1<<7)?[["G/F — моя копия",env.SIDJ_AUDIT_OWNER_REPO,env.SIDJ_AUDIT_OWNER_TOKEN,"professor.yml",{scope:"source"}]]:[]),
-    ...(mask&(1<<8)?[["G/F — Алексей",env.SIDJ_AUDIT_ALEX_REPO,env.SIDJ_AUDIT_ALEX_TOKEN,"professor.yml",{scope:"source"}]]:[])
+    ...(mask&GF?[["G/F — моя копия",PRIVATE_REPO,env.SIDJ_AUDIT_OWNER_TOKEN,"professor.yml",{scope:"source"}]]:[])
   ];
   const results=await Promise.all(groups.map(async ([name,repo,token,workflow,inputs])=>{
     const outcome=await dispatch(repo,token,workflow,inputs);
@@ -81,7 +80,7 @@ async function auditRun(env,mask,say) {
 
 export function auditAction(env,data,say){
   if(data==="audit") return auditMenu(env,0,say);
-  const toggle=/^a:t:([0-8]):([0-9]{1,4})$/.exec(data);
+  const toggle=/^a:t:([0-7]):([0-9]{1,4})$/.exec(data);
   if(toggle){const mask=validMask(toggle[2]);return mask===null?auditMenu(env,0,say):auditMenu(env,mask^(1<<Number(toggle[1])),say);}
   const select=/^a:s:([0-9]{1,4})$/.exec(data);
   if(select){const mask=validMask(select[1]);return auditMenu(env,mask===null?0:mask,say);}
