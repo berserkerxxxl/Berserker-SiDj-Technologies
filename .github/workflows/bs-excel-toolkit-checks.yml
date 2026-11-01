@@ -1,0 +1,28 @@
+name: B/S Excel Toolkit - path safety checks
+
+on:
+  pull_request:
+    paths:
+      - 'apps/BS_Excel_Toolkit_1_0_0.html'
+      - 'automation/test_bs_excel_toolkit.mjs'
+      - '.github/workflows/bs-excel-toolkit-checks.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  toolkit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 4
+    steps:
+      - name: Checkout
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          persist-credentials: false
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+      - name: Run offline XLSX path safety and inline-JavaScript tests
+        run: node automation/test_bs_excel_toolkit.mjs
