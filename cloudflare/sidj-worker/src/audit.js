@@ -16,7 +16,7 @@ const ALL=(1<<AUDIT_PROJECTS.length)-1;
 const BS=(1<<7)-1;
 const GF=ALL ^ BS;
 const MAIN="berserkerxxxl/Berserker-SiDj-Technologies";
-const NAME=/^[A-Za-z0-9][A-Za-z0-9_.-]{0,99}/[A-Za-z0-9][A-Za-z0-9_.-]{0,99}$/;
+const NAME = new RegExp("^[A-Za-z0-9][A-Za-z0-9_.-]{0,99}/[A-Za-z0-9][A-Za-z0-9_.-]{0,99}$");
 const selected=mask=>AUDIT_PROJECTS.flatMap(([id,label],i)=>mask&(1<<i)?[[id,label]]:[]);
 const validMask=value=>/^(?:0|[1-9][0-9]{0,3})$/.test(value)&&Number(value)<=ALL?Number(value):null;
 
