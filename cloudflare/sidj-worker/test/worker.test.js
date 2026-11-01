@@ -417,18 +417,18 @@ test("protected menu refresh only calls setMyCommands and leaves webhook unchang
 });
 
 
-test("audit menu supports selecting individual projects, all, and both private copies", async () => {
+test("audit menu supports selecting 7 B/S projects and only owner private G/F", async () => {
   assert.equal(COMMANDS.filter(c => c.command === "audit").length, 1);
   const f = await fixture();
   assert.equal((await f.send(message("/audit"))).status, 200);
   let out = f.tg.at(-1).data;
   assert.match(out.text, /Профессор/);
-  assert.equal(out.reply_markup.inline_keyboard.flat().filter(x=>x.callback_data?.startsWith("a:t:")).length, 9);
-  assert.ok(out.reply_markup.inline_keyboard.flat().some(x=>x.callback_data==="a:s:511"));
+  assert.equal(out.reply_markup.inline_keyboard.flat().filter(x=>x.callback_data?.startsWith("a:t:")).length, 8);
+  assert.ok(out.reply_markup.inline_keyboard.flat().some(x=>x.callback_data==="a:s:255"));
   assert.equal((await f.send(callback("a:t:0:0"))).status, 200);
   assert.match(f.tg.at(-1).data.text, /Выбрано: 1/);
-  assert.equal((await f.send(callback("a:s:384"))).status, 200);
-  assert.match(f.tg.at(-1).data.text, /Выбрано: 2/);
+  assert.equal((await f.send(callback("a:s:128"))).status, 200);
+  assert.match(f.tg.at(-1).data.text, /Выбрано: 1/);
   assert.ok(f.tg.at(-1).data.reply_markup.inline_keyboard.flat().some(b => b.text.includes("G/F Storm")));
 });
 test("audit requires confirmation and tokens; never dispatches to arbitrary repository", async () => {
@@ -452,21 +452,21 @@ test("audit dispatches only selected matrix projects and does not expose tokens"
   assert.match(f.tg.at(-1).data.text, /отправлен/);
   assert.ok(!f.tg.at(-1).data.text.includes("unit-test-public-token"));
 });
-test("private audit tokens are bound to separate validated repositories", async () => {
+test("only owner private G/F repo can be dispatched; Alex is not addressable", async () => {
   const f = await fixture();
   const e = { ...env, SIDJ_AUDIT_OWNER_TOKEN:"owner-secret",
-    SIDJ_AUDIT_ALEX_TOKEN:"alex-secret",
-    SIDJ_AUDIT_OWNER_REPO:"berserkerxxxl/GF-Storm-ID",
-    SIDJ_AUDIT_ALEX_REPO:"Alekseym1507/GF-Storm-ID" };
-  assert.equal((await f.send(callback("a:go:384"), {}, e)).status, 200);
+    SIDJ_AUDIT_ALEX_TOKEN:"should-never-be-used",
+    SIDJ_AUDIT_ALEX_REPO:"Alekseym1507/GF-Storm-ID",
+    SIDJ_AUDIT_OWNER_REPO:"evil.example/untrusted" };
+  assert.equal((await f.send(callback("a:go:128"), {}, e)).status, 200);
   const dispatch = f.calls.filter(x=>x.url.endsWith("/dispatches"));
-  assert.equal(dispatch.length, 2);
-  assert.ok(dispatch.some(x=>x.url.includes("/berserkerxxxl/GF-Storm-ID/")));
-  assert.ok(dispatch.some(x=>x.url.includes("/Alekseym1507/GF-Storm-ID/")));
-  assert.ok(dispatch.every(x=>JSON.parse(x.init.body).ref==="main"));
+  assert.equal(dispatch.length, 1);
+  assert.ok(dispatch[0].url.includes("/berserkerxxxl/GF-Storm-ID/"));
+  assert.equal(dispatch[0].init.headers.Authorization, "Bearer owner-secret");
+  assert.ok(!dispatch[0].url.includes("Alekseym1507"));
+  assert.deepEqual(JSON.parse(dispatch[0].init.body), {ref:"main",inputs:{scope:"source"}});
   const other = await fixture();
-  const bad = {...e, SIDJ_AUDIT_ALEX_REPO:"evil.example/../admin"};
-  assert.equal((await other.send(callback("a:go:256"),{},bad)).status,200);
+  assert.equal((await other.send(callback("a:go:256"),{},e)).status,200);
   assert.equal(other.calls.filter(x=>x.url.endsWith("/dispatches")).length,0);
 });
 
