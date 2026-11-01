@@ -198,7 +198,7 @@ class PortfolioTests(unittest.TestCase):
         with patch.object(ai, "build_opener", return_value=FakeOpener()):
             result, _ = ai.free_review(source, "file.js", "B/S", "fake-key")
         self.assertEqual(len(calls), 2)
-        self.assertEqual(result["evidence"], "const someLongName = ")
+        self.assertEqual(result["evidence"], "const someLongName =")
         self.assertEqual(calls[0]["model"], ai.FREE_MODELS[0])
         self.assertEqual(calls[1]["model"], ai.FREE_MODELS[1])
         self.assertTrue(all(model.endswith(":free") for call in calls for model in call["models"]))
