@@ -13,6 +13,7 @@ import os
 from pathlib import Path
 import re
 import sys
+from time import sleep
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, build_opener, HTTPRedirectHandler, urlopen
 from zoneinfo import ZoneInfo
@@ -23,7 +24,7 @@ ROOT = Path(__file__).resolve().parents[1]
 REPOSITORY = "berserkerxxxl/Berserker-SiDj-Technologies"
 MAX_SOURCE = 6_000
 RETRY_SOURCE = 3_200
-REASONING_BUDGET = (1_024, 768)
+FREE_ROUTER = "openrouter/free"  # Zero-cost dynamic model routing.
 REPORT_ENV = "SIDJ_PORTFOLIO_REPORT_FILE"
 PROJECTS = {
     "sidj": ("B/S SiDj — Telegram-бот", [
@@ -211,7 +212,7 @@ def evidence_is_complete(source: str, evidence: str) -> bool:
 
 
 def free_review(source: str, path: str, project: str, key: str) -> tuple[dict, str]:
-    """At most two free requests; retry only invalid or truncated model outputs."""
+    """At most two requests, using only known-free routes with bounded retries."""
     if not FREE_MODELS or any(not x.endswith(":free") for x in FREE_MODELS):
         raise RuntimeError("Разрешены только бесплатные модели OpenRouter")
     system = (
@@ -254,9 +255,8 @@ def free_review(source: str, path: str, project: str, key: str) -> tuple[dict, s
     )
     for attempt in range(2):
         # Rotate to the next free model on a second attempt when possible.
-        models = list(FREE_MODELS[attempt:]) + list(FREE_MODELS[:attempt])
-        if not models:
-            models = list(FREE_MODELS)
+        # Fixed free models first, then OpenRouter's zero-cost dynamic router.
+        models = list(FREE_MODELS[attempt:]) + list(FREE_MODELS[:attempt]) + [FREE_ROUTER]
         attempt_source = source if attempt == 0 else retry_excerpt(source)
         instruction = source_prompt + attempt_source
         if attempt:
@@ -269,14 +269,13 @@ def free_review(source: str, path: str, project: str, key: str) -> tuple[dict, s
         payload = json.dumps({
             "model": models[0],
             "models": models, "route": "fallback",
+            "provider": {"require_parameters": True},
             "response_format": {"type": "json_object"},
             "messages": [
                 {"role": "system", "content": system},
                 {"role": "user", "content": instruction},
             ],
-            # Reasoning counts toward max_tokens on many free providers.
-            # Separate budgets leave room for the actual JSON answer.
-            "reasoning": {"max_tokens": REASONING_BUDGET[attempt]},
+            # Avoid optional reasoning parameters when requiring JSON support.
             "max_tokens": 3600, "temperature": 0.1, "stream": False,
         }).encode("utf-8")
         req = Request(ENDPOINT, data=payload, method="POST", headers={
@@ -291,10 +290,19 @@ def free_review(source: str, path: str, project: str, key: str) -> tuple[dict, s
                 raw = response.read(MAX_RESPONSE + 1)
         except HTTPError as error:
             if attempt == 0 and error.code in (408, 429, 500, 502, 503, 504):
+                sleep(1)
                 continue
-            raise RuntimeError(f"Бесплатная модель недоступна (HTTP {error.code})") from None
+            # Record only trusted route metadata, never raw API error bodies.
+            raise RuntimeError(
+                f"Бесплатный OpenRouter недоступен (HTTP {error.code}; "
+                f"маршрут: {models[0]} → {FREE_ROUTER})") from None
         except (URLError, TimeoutError):
-            raise RuntimeError("Бесплатная модель недоступна по сети") from None
+            if attempt == 0:
+                sleep(1)
+                continue
+            raise RuntimeError(
+                f"Бесплатный OpenRouter: ошибка сети/таймаут; "
+                f"маршрут: {models[0]} → {FREE_ROUTER}") from None
         if len(raw) > MAX_RESPONSE:
             raise RuntimeError("Ответ бесплатной модели слишком большой")
         try:
@@ -337,7 +345,10 @@ def free_review(source: str, path: str, project: str, key: str) -> tuple[dict, s
             raise ValueError(f"ИИ-аудит не завершён после двух попыток: {error}") from None
         analysis["_retry_excerpt"] = attempt > 0 and attempt_source != source
         model = result.get("model", models[0])
-        if model not in FREE_MODELS:
+        # The dynamic router may choose a free model outside our fixed list.
+        if (not isinstance(model, str) or
+                (model != FREE_ROUTER and
+                 not re.fullmatch(r"[A-Za-z0-9._-]+/[A-Za-z0-9._-]+:free", model))):
             model = "бесплатная модель (идентификатор не указан)"
         return analysis, model
     raise RuntimeError("Не удалось получить проверенный ответ ИИ")
