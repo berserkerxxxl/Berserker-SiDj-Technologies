@@ -157,11 +157,13 @@ class PortfolioTests(unittest.TestCase):
         self.assertEqual(model, "nvidia/nemotron-3-ultra-550b-a55b:free")
         self.assertEqual(report["severity"], "низкий")
         self.assertEqual(len(requests), 1)
-        self.assertTrue(all(m.endswith(":free") for m in requests[0]["models"]))
+        self.assertTrue(all(m.endswith(":free") or m == ai.FREE_ROUTER for m in requests[0]["models"]))
         self.assertEqual(requests[0]["route"], "fallback")
         self.assertEqual(requests[0]["response_format"], {"type": "json_object"})
         self.assertEqual(requests[0]["max_tokens"], 3600)
-        self.assertEqual(requests[0]["reasoning"], {"max_tokens": ai.REASONING_BUDGET[0]})
+        self.assertEqual(requests[0]["provider"], {"require_parameters": True})
+        self.assertNotIn("reasoning", requests[0])
+        self.assertEqual(requests[0]["models"][-1], ai.FREE_ROUTER)
         self.assertLess(ai.RETRY_SOURCE, ai.MAX_SOURCE)
         self.assertNotIn("api_key", requests[0])
         self.assertNotIn("authorization", requests[0])
@@ -221,10 +223,11 @@ class PortfolioTests(unittest.TestCase):
         self.assertEqual(result["evidence"], "const someLongName =")
         self.assertEqual(calls[0]["model"], ai.FREE_MODELS[0])
         self.assertEqual(calls[1]["model"], ai.FREE_MODELS[1])
-        self.assertTrue(all(model.endswith(":free") for call in calls for model in call["models"]))
+        self.assertTrue(all(model.endswith(":free") or model == ai.FREE_ROUTER for call in calls for model in call["models"]))
         self.assertTrue(all(call["max_tokens"] == 3600 for call in calls))
-        self.assertEqual(calls[0]["reasoning"], {"max_tokens": ai.REASONING_BUDGET[0]})
-        self.assertEqual(calls[1]["reasoning"], {"max_tokens": ai.REASONING_BUDGET[1]})
+        self.assertTrue(all(call["provider"] == {"require_parameters": True}
+                            for call in calls))
+        self.assertTrue(all("reasoning" not in call for call in calls))
 
     def test_truncated_first_answer_succeeds_on_retry(self):
         source = "const timeout = 25;\n"
@@ -448,7 +451,7 @@ class PortfolioTests(unittest.TestCase):
         with patch.object(ai, "build_opener", return_value=FakeOpener()):
             result, _ = ai.free_review("const timeout = 25;\n", "file.js", "B/S", "fake-key")
         self.assertEqual(len(calls), 2)
-        self.assertTrue(all(model.endswith(":free") for call in calls for model in call["models"]))
+        self.assertTrue(all(model.endswith(":free") or model == ai.FREE_ROUTER for call in calls for model in call["models"]))
         self.assertEqual(result["decision"], "нет замечаний")
 
     def test_retry_excerpt_never_splits_an_identifier(self):
@@ -531,6 +534,65 @@ class PortfolioTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "проверку"):
                 ai.free_review("const timeout = 25;", "file.js", "B/S", "fake-key")
         self.assertEqual(len(calls), 2)
+
+
+    def test_http_503_twice_reports_safe_route_and_backoff(self):
+        from urllib.error import HTTPError
+        calls = []
+
+        class Unavailable:
+            def open(self, req, timeout):
+                calls.append(json.loads(req.data))
+                raise HTTPError(req.full_url, 503, "Service Unavailable", {}, None)
+
+        with patch.object(ai, "build_opener", return_value=Unavailable()), \
+                patch.object(ai, "sleep") as pause:
+            with self.assertRaisesRegex(RuntimeError, "HTTP 503.*openrouter/free"):
+                ai.free_review("const enabled = true;", "file.js", "B/S", "fake-key")
+
+        self.assertEqual(len(calls), 2)
+        pause.assert_called_once_with(1)
+        self.assertEqual([call["model"] for call in calls], list(ai.FREE_MODELS))
+        self.assertTrue(all(call["models"][-1] == ai.FREE_ROUTER for call in calls))
+        self.assertTrue(all(call["provider"]["require_parameters"] for call in calls))
+
+    def test_http_503_recovers_and_reports_router_selected_free_model(self):
+        from urllib.error import HTTPError
+        calls = []
+
+        class Recovering:
+            def open(self, req, timeout):
+                calls.append(json.loads(req.data))
+                if len(calls) == 1:
+                    raise HTTPError(req.full_url, 503, "Service Unavailable", {}, None)
+                reply = {"model": "qwen/qwen3-4b:free",
+                         "choices": [{"message": {"content": json.dumps({
+                             "finding": "Подтверждённых проблем не выявлено",
+                             "recommendation": "Изменений не требуется",
+                             "severity": "нет замечаний",
+                             "evidence": "",
+                             "intent": "Сохраняет локальную конфигурацию системы",
+                             "impact": "Нет подтверждённого сбоя в исходном коде",
+                             "counterargument": "Изменения могут нарушить существующее поведение",
+                             "decision": "нет замечаний",
+                             "confidence": "средняя",
+                             "verification": "Сравнить ответы в ручной проверке",
+                         }, ensure_ascii=False)}}]}
+                return io.BytesIO(json.dumps(reply).encode("utf-8"))
+
+        with patch.object(ai, "build_opener", return_value=Recovering()), \
+                patch.object(ai, "sleep") as pause:
+            analysis, model = ai.free_review("const enabled = true;", "file.js", "B/S", "fake-key")
+        self.assertEqual(len(calls), 2)
+        pause.assert_called_once_with(1)
+        self.assertEqual(analysis["decision"], "нет замечаний")
+        self.assertEqual(model, "qwen/qwen3-4b:free")
+        self.assertTrue(all(call["models"][-1] == ai.FREE_ROUTER for call in calls))
+
+    def test_free_router_is_the_only_non_suffix_route(self):
+        self.assertEqual(ai.FREE_ROUTER, "openrouter/free")
+        self.assertTrue(ai.FREE_MODELS)
+        self.assertTrue(all(m.endswith(":free") for m in ai.FREE_MODELS))
 
     def test_denies_non_free_model(self):
         with patch.object(ai, "FREE_MODELS", ("expensive/model",)):
