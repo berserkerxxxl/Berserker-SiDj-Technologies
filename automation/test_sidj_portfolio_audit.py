@@ -222,9 +222,9 @@ class PortfolioTests(unittest.TestCase):
         self.assertEqual(len(calls), 2)
         self.assertEqual(result["evidence"], "const someLongName =")
         self.assertEqual(calls[0]["model"], ai.FREE_MODELS[0])
-        self.assertEqual(calls[1]["model"], ai.FREE_MODELS[1])
+        self.assertEqual(calls[1]["model"], ai.COMPACT_MODEL)
         self.assertTrue(all(model.endswith(":free") or model == ai.FREE_ROUTER for call in calls for model in call["models"]))
-        self.assertTrue(all(call["max_tokens"] == 3600 for call in calls))
+        self.assertEqual([call["max_tokens"] for call in calls], [3600, 5200])
         self.assertTrue(all(call["provider"] == {"require_parameters": True}
                             for call in calls))
         self.assertTrue(all("reasoning" not in call for call in calls))
@@ -256,6 +256,43 @@ class PortfolioTests(unittest.TestCase):
             analysis, _ = ai.free_review(source, "file.js", "B/S", "fake-key")
         self.assertEqual(len(calls), 2)
         self.assertEqual(analysis["severity"], "низкий")
+
+    def test_truncation_uses_compact_json_capable_free_retry(self):
+        calls = []
+
+        class FakeOpener:
+            def open(self, req, timeout):
+                request = json.loads(req.data)
+                calls.append(request)
+                if len(calls) == 1:
+                    response = {"choices": [{"finish_reason": "length",
+                                             "message": {"content": "{"}}]}
+                else:
+                    response = {"model": ai.COMPACT_MODEL,
+                                "choices": [{"finish_reason": "stop",
+                                             "message": {"content": json.dumps({
+                                                 "finding": "Подтверждённых проблем не выявлено",
+                                                 "recommendation": "Изменений не требуется",
+                                                 "severity": "нет замечаний",
+                                                 "evidence": "",
+                                                 "intent": "Проверяет явно заданный фрагмент программы",
+                                                 "impact": "Сбой по фрагменту кода пока не доказан",
+                                                 "counterargument": "Изменения могут ухудшить поведение",
+                                                 "decision": "нет замечаний",
+                                                 "confidence": "средняя",
+                                                 "verification": "Сравнить результаты ручной проверки",
+                                             }, ensure_ascii=False)}}]}
+                return io.BytesIO(json.dumps(response).encode("utf-8"))
+
+        with patch.object(ai, "build_opener", return_value=FakeOpener()):
+            result, model = ai.free_review("const timeout = 25;", "path.js", "B/S", "fake-key")
+        self.assertEqual(result["decision"], "нет замечаний")
+        self.assertEqual(model, ai.COMPACT_MODEL)
+        self.assertEqual(len(calls), 2)
+        self.assertEqual(calls[1]["models"], [ai.COMPACT_MODEL, ai.FREE_ROUTER])
+        self.assertEqual(calls[1]["max_tokens"], 5200)
+        self.assertIn("900 characters total", calls[1]["messages"][1]["content"])
+        self.assertLess(ai.RETRY_SOURCE, ai.MAX_SOURCE)
 
     def test_no_finding_with_evidence_requires_retry(self):
         source = "const timeout = 25;\n"
@@ -552,7 +589,7 @@ class PortfolioTests(unittest.TestCase):
 
         self.assertEqual(len(calls), 2)
         pause.assert_called_once_with(1)
-        self.assertEqual([call["model"] for call in calls], list(ai.FREE_MODELS))
+        self.assertEqual([call["model"] for call in calls], [ai.FREE_MODELS[0], ai.COMPACT_MODEL])
         self.assertTrue(all(call["models"][-1] == ai.FREE_ROUTER for call in calls))
         self.assertTrue(all(call["provider"]["require_parameters"] for call in calls))
 
@@ -593,6 +630,7 @@ class PortfolioTests(unittest.TestCase):
         self.assertEqual(ai.FREE_ROUTER, "openrouter/free")
         self.assertTrue(ai.FREE_MODELS)
         self.assertTrue(all(m.endswith(":free") for m in ai.FREE_MODELS))
+        self.assertTrue(ai.COMPACT_MODEL.endswith(":free"))
 
     def test_denies_non_free_model(self):
         with patch.object(ai, "FREE_MODELS", ("expensive/model",)):
