@@ -25,8 +25,30 @@ REPOSITORY = "berserkerxxxl/Berserker-SiDj-Technologies"
 MAX_SOURCE = 6_000
 RETRY_SOURCE = 2_400
 FREE_ROUTER = "openrouter/free"  # Zero-cost dynamic model routing.
-COMPACT_MODEL = "google/gemma-4-26b-a4b-it:free"  # JSON-capable free retry model.
+COMPACT_MODEL = "google/gemma-4-26b-a4b-it:free"  # JSON-capable free review model.
 REPORT_ENV = "SIDJ_PORTFOLIO_REPORT_FILE"
+EXPLANATION_FIELDS = ("intent", "impact", "counterargument", "verification")
+ANALYSIS_SCHEMA = {
+    "type": "object", "additionalProperties": False,
+    "properties": {
+        "finding": {"type": "string", "minLength": 1, "maxLength": 240},
+        "recommendation": {"type": "string", "minLength": 1, "maxLength": 420},
+        "severity": {"type": "string", "enum": ["низкий", "средний", "высокий", "нет замечаний"]},
+        "evidence": {"type": "string", "maxLength": 220},
+        "intent": {"type": "string", "minLength": 12, "maxLength": 180,
+                   "description": "Назначение показанного кода; конкретное полное предложение на русском."},
+        "impact": {"type": "string", "minLength": 12, "maxLength": 200,
+                   "description": "Последствия или отсутствие доказанного сбоя; полное предложение."},
+        "counterargument": {"type": "string", "minLength": 12, "maxLength": 200,
+                            "description": "Почему код может быть намеренным; полное предложение."},
+        "decision": {"type": "string", "enum": ["исправить", "наблюдать", "отклонить", "нет замечаний"]},
+        "confidence": {"type": "string", "enum": ["низкая", "средняя", "высокая"]},
+        "verification": {"type": "string", "minLength": 12, "maxLength": 180,
+                         "description": "Конкретный ручной тест, который только предлагается, ещё не выполнялся."},
+    },
+    "required": ["finding", "recommendation", "severity", "evidence", "intent", "impact",
+                 "counterargument", "decision", "confidence", "verification"],
+}
 PROJECTS = {
     "sidj": ("B/S SiDj — Telegram-бот", [
         "cloudflare/sidj-worker/src/index.js"]),
@@ -224,13 +246,15 @@ def model_identifier(value: object, key: str) -> str | None:
 
 def log_attempt(attempt: int, models: list[str], started: float,
                 outcome: str, reason: str, key: str, *, model: object = None,
-                finish: object = None, http_status: int | None = None) -> None:
+                finish: object = None, http_status: int | None = None,
+                response_format: str = "json_schema", invalid_fields: tuple[str, ...] = ()) -> None:
     """One bounded JSON event per attempt; no prompts, answers or exception text."""
     event = {
         "event": "professor_attempt", "attempt": attempt + 1,
         "requested_models": [model_identifier(item, key) for item in models],
         "actual_model": model_identifier(model, key),
         "outcome": outcome, "reason": reason,
+        "response_format": response_format if response_format in ("json_schema", "json_object") else None,
         "finish_reason": finish if isinstance(finish, str) and finish in (
             "stop", "length", "content_filter", "tool_calls", "error") else None,
         "will_retry": outcome == "retry",
@@ -238,6 +262,8 @@ def log_attempt(attempt: int, models: list[str], started: float,
     }
     if type(http_status) is int and 100 <= http_status <= 599:
         event["http_status"] = http_status
+    if invalid_fields:
+        event["invalid_fields"] = [field for field in EXPLANATION_FIELDS if field in invalid_fields]
     print(json.dumps(event, ensure_ascii=False), flush=True)
 
 
@@ -270,7 +296,10 @@ def free_review(source: str, path: str, project: str, key: str) -> tuple[dict, s
         "For no issue, severity=decision='нет замечаний', evidence='', "
         "finding='Подтверждённых проблем не выявлено', "
         "recommendation='Изменений не требуется'. "
-        "Always give brief intent, impact and counterargument, even if no issue. "
+        "Always fill intent, impact, counterargument AND verification with "
+        "specific complete Russian sentences of at least 12 characters each, "
+        "even if there is no issue. Never use empty strings, 'нет', 'OK', "
+        "or generic placeholders for these four fields. "
         "No Markdown, no hidden analysis, no exhaustive-coverage claims. "
         "Explicitly distinguish source evidence from hypotheses."
     )
@@ -284,37 +313,47 @@ def free_review(source: str, path: str, project: str, key: str) -> tuple[dict, s
         + "\nDesign context: " + context
         + "\nPublic source fragment (not the whole repository):\n"
     )
+    schema_mode = True
+    retry_hint = ""
     for attempt in range(2):
         # A complete but token-truncated response is NOT a provider failure:
         # OpenRouter will not retry it automatically through route=fallback.
-        # On our second application-level attempt choose a short-answer,
-        # JSON-capable free model instead of the reasoning-heavy backup.
-        models = ([*FREE_MODELS, FREE_ROUTER] if attempt == 0
+        # Prefer the JSON-capable compact model from the first request.
+        # Keep the established coding models and free router as backups.
+        models = ([COMPACT_MODEL, *FREE_MODELS, FREE_ROUTER] if attempt == 0
                   else [COMPACT_MODEL, FREE_ROUTER])
         attempt_source = source if attempt == 0 else retry_excerpt(source)
         instruction = source_prompt + attempt_source
         if attempt:
             instruction = (
-                "Previous output was truncated or invalid. Start IMMEDIATELY "
-                "with a compact Russian JSON object, 10 required keys, at most "
-                "900 characters total. Keep each explanation brief but specific "
+                "The previous attempt failed. " + retry_hint + " Start IMMEDIATELY "
+                "with a compact Russian JSON object, 10 required keys. "
+                "Allow up to 1600 characters so all fields can be meaningful. "
+                "Keep each explanation brief but specific "
                 "(at least 12 characters for intent, impact, counterargument "
                 "and verification). Do NOT add prose, chain-of-thought, "
                 "Markdown, or extra fields. Only cite an EXACT source quote "
                 "if you found a supported issue. Otherwise report no issue.\n"
                 + instruction
             )
+        format_type = "json_schema" if schema_mode else "json_object"
+        response_format = ({"type": "json_schema", "json_schema": {
+            "name": "professor_report", "strict": True, "schema": ANALYSIS_SCHEMA,
+        }} if schema_mode else {"type": "json_object"})
+        if not schema_mode:
+            # Compatibility fallback still faces the same local validator.
+            instruction = "Required JSON schema: " + json.dumps(ANALYSIS_SCHEMA, ensure_ascii=False) + "\n" + instruction
         payload = json.dumps({
             "model": models[0],
             "models": models, "route": "fallback",
             "provider": {"require_parameters": True},
-            "response_format": {"type": "json_object"},
+            "response_format": response_format,
             "messages": [
                 {"role": "system", "content": system},
                 {"role": "user", "content": instruction},
             ],
             # Avoid optional reasoning parameters when requiring JSON support.
-            "max_tokens": 3600 if attempt == 0 else 5_200,
+            "max_tokens": 5_200,
             "temperature": 0.1, "stream": False,
         }).encode("utf-8")
         req = Request(ENDPOINT, data=payload, method="POST", headers={
@@ -329,10 +368,16 @@ def free_review(source: str, path: str, project: str, key: str) -> tuple[dict, s
             with build_opener(NoRedirect()).open(req, timeout=65) as response:
                 raw = response.read(MAX_RESPONSE + 1)
         except HTTPError as error:
-            retry = attempt == 0 and error.code in (408, 429, 500, 502, 503, 504)
+            # Some free endpoints reject strict schemas. Downgrade only the
+            # transport format once, never the local evidence/meaning checks.
+            compatibility_retry = schema_mode and error.code in (400, 404, 422)
+            retry = attempt == 0 and (compatibility_retry or error.code in (408, 429, 500, 502, 503, 504))
             log_attempt(attempt, models, started, "retry" if retry else "failed",
-                        "http_error", key, http_status=error.code)
+                        "http_error", key, http_status=error.code, response_format=format_type)
             if retry:
+                if compatibility_retry:
+                    schema_mode = False
+                retry_hint = "Return all required fields; the prior HTTP request did not produce a usable report."
                 sleep(1)
                 continue
             # Record only trusted route metadata, never raw API error bodies.
@@ -343,7 +388,7 @@ def free_review(source: str, path: str, project: str, key: str) -> tuple[dict, s
             timed_out = isinstance(error, TimeoutError) or (
                 isinstance(error, URLError) and isinstance(error.reason, TimeoutError))
             log_attempt(attempt, models, started, "retry" if attempt == 0 else "failed",
-                        "timeout" if timed_out else "network_error", key)
+                        "timeout" if timed_out else "network_error", key, response_format=format_type)
             if attempt == 0:
                 sleep(1)
                 continue
@@ -351,20 +396,21 @@ def free_review(source: str, path: str, project: str, key: str) -> tuple[dict, s
                 f"Бесплатный OpenRouter: ошибка сети/таймаут; "
                 f"маршрут: {models[0]} → {FREE_ROUTER}") from None
         except RuntimeError:
-            log_attempt(attempt, models, started, "failed", "request_blocked", key)
+            log_attempt(attempt, models, started, "failed", "request_blocked", key, response_format=format_type)
             raise
         if len(raw) > MAX_RESPONSE:
-            log_attempt(attempt, models, started, "failed", "response_too_large", key)
+            log_attempt(attempt, models, started, "failed", "response_too_large", key, response_format=format_type)
             raise RuntimeError("Ответ бесплатной модели слишком большой")
         try:
             result = json.loads(raw)
         except (json.JSONDecodeError, UnicodeDecodeError):
-            log_attempt(attempt, models, started, "failed", "invalid_api_json", key)
+            log_attempt(attempt, models, started, "failed", "invalid_api_json", key, response_format=format_type)
             raise RuntimeError("API OpenRouter вернул некорректный JSON") from None
         if not isinstance(result, dict) or result.get("error"):
             log_attempt(attempt, models, started, "retry" if attempt == 0 else "failed",
                         "api_error", key,
-                        model=result.get("model") if isinstance(result, dict) else None)
+                        model=result.get("model") if isinstance(result, dict) else None,
+                        response_format=format_type)
             if attempt == 0:
                 continue
             raise RuntimeError("Бесплатная модель отклонила запрос")
@@ -374,6 +420,7 @@ def free_review(source: str, path: str, project: str, key: str) -> tuple[dict, s
         finish = item.get("finish_reason")
         model = result.get("model")
         reason = "invalid_analysis"
+        invalid_fields = ()
         try:
             if finish == "length":
                 reason = "token_limit"
@@ -385,8 +432,8 @@ def free_review(source: str, path: str, project: str, key: str) -> tuple[dict, s
             if analysis["confidence"] not in ("низкая", "средняя", "высокая"):
                 reason = "invalid_confidence"
                 raise ValueError("Не указана степень уверенности")
-            if any(len(analysis[field]) < 12 for field in
-                   ("intent", "impact", "counterargument", "verification")):
+            invalid_fields = tuple(field for field in EXPLANATION_FIELDS if len(analysis[field]) < 12)
+            if invalid_fields:
                 reason = "missing_explanation"
                 raise ValueError("ИИ не объяснил назначение, последствия, альтернативу или проверку")
             if analysis["decision"] == "исправить" and analysis["confidence"] != "высокая":
@@ -406,13 +453,17 @@ def free_review(source: str, path: str, project: str, key: str) -> tuple[dict, s
         except ValueError as error:
             # No untrusted model output or source appears in diagnostics.
             log_attempt(attempt, models, started, "retry" if attempt == 0 else "failed",
-                        reason, key, model=model, finish=finish)
+                        reason, key, model=model, finish=finish, response_format=format_type,
+                        invalid_fields=invalid_fields)
             if attempt == 0:
+                retry_hint = ("Fill these explanation fields with specific complete sentences: " +
+                              ", ".join(invalid_fields) if invalid_fields else
+                              "Provide a complete, concise analysis with an exact source quote only for a supported issue.")
                 continue
             raise ValueError(f"ИИ-аудит не завершён после двух попыток: {error}") from None
         analysis["_retry_excerpt"] = attempt > 0 and attempt_source != source
         log_attempt(attempt, models, started, "success", "validated", key,
-                    model=model, finish=finish)
+                    model=model, finish=finish, response_format=format_type)
         # Missing metadata must not be presented as the requested model.
         return analysis, model_identifier(model, key) or "бесплатная модель (идентификатор не указан)"
     raise RuntimeError("Не удалось получить проверенный ответ ИИ")
