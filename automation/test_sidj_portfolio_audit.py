@@ -2,10 +2,12 @@
 
 import io
 import json
+from contextlib import redirect_stdout
 from pathlib import Path
 import sys
 import unittest
 from unittest.mock import patch
+from urllib.error import HTTPError, URLError
 
 sys.path.insert(0, str(Path(__file__).parent))
 import sidj_portfolio_audit as ai
@@ -638,5 +640,166 @@ class PortfolioTests(unittest.TestCase):
                 ai.free_review("source", "file", "project", "key")
 
 
+class AttemptDiagnosticsTests(unittest.TestCase):
+    KEY = "diagnostic-key-sentinel"
+    SOURCE = "const source_sentinel = true;"
+    PRIVATE_TEXT = "response-text-sentinel"
+
+    def reply(self, *, model=ai.COMPACT_MODEL, finish="stop", evidence=""):
+        return {"model": model, "choices": [{"finish_reason": finish, "message": {
+            "content": json.dumps({
+                "finding": self.PRIVATE_TEXT,
+                "recommendation": "Изменений не требуется",
+                "severity": "нет замечаний", "evidence": evidence,
+                "intent": "Проверяет явно заданный фрагмент программы",
+                "impact": "Сбой по фрагменту кода пока не доказан",
+                "counterargument": "Изменения могут ухудшить поведение",
+                "decision": "нет замечаний", "confidence": "средняя",
+                "verification": "Сравнить результаты ручной проверки",
+            }, ensure_ascii=False)}}]}
+
+    def review(self, *responses):
+        calls, output = [], io.StringIO()
+        pending = iter(responses)
+
+        class FakeOpener:
+            def open(self, req, timeout):
+                calls.append(json.loads(req.data))
+                value = next(pending)
+                if isinstance(value, Exception):
+                    raise value
+                return io.BytesIO(value if isinstance(value, bytes) else
+                                  json.dumps(value).encode("utf-8"))
+
+        result, error = None, None
+        with patch.object(ai, "build_opener", return_value=FakeOpener()), \
+                patch.object(ai, "sleep"), redirect_stdout(output):
+            try:
+                result = ai.free_review(self.SOURCE, "path-sentinel.js", "B/S", self.KEY)
+            except (ValueError, RuntimeError) as failure:
+                error = failure
+        events = [json.loads(line) for line in output.getvalue().splitlines()]
+        self.assertEqual(len(events), len(calls))
+        self.assertLessEqual(len(calls), 2)
+        for event in events:
+            self.assertEqual(set(event) - {"http_status"}, {
+                "event", "attempt", "requested_models", "actual_model", "outcome",
+                "reason", "finish_reason", "will_retry", "elapsed_ms"})
+            self.assertEqual(event["event"], "professor_attempt")
+            self.assertIsInstance(event["elapsed_ms"], int)
+            self.assertGreaterEqual(event["elapsed_ms"], 0)
+        for private in (self.KEY, self.SOURCE, self.PRIVATE_TEXT, "path-sentinel.js"):
+            self.assertNotIn(private, output.getvalue())
+        return result, error, events
+
+    def test_token_limit_recovers_with_actual_router_model_and_safe_events(self):
+        first = self.reply(model=ai.FREE_MODELS[0], finish="length")
+        first["choices"][0]["message"]["content"] = self.KEY + self.SOURCE
+        model = "nvidia/nemotron-3.5-super-vl:free"
+        result, error, events = self.review(first, self.reply(model=model))
+        self.assertIsNone(error)
+        self.assertEqual(result[1], model)
+        self.assertEqual([event["attempt"] for event in events], [1, 2])
+        self.assertEqual([event["outcome"] for event in events], ["retry", "success"])
+        self.assertEqual([event["reason"] for event in events], ["token_limit", "validated"])
+        self.assertEqual([event["will_retry"] for event in events], [True, False])
+        self.assertEqual(events[0]["finish_reason"], "length")
+        self.assertEqual(events[0]["actual_model"], ai.FREE_MODELS[0])
+        self.assertEqual(events[1]["actual_model"], model)
+        self.assertEqual(events[1]["requested_models"], [ai.COMPACT_MODEL, ai.FREE_ROUTER])
+        self.assertEqual(events[0]["requested_models"], [*ai.FREE_MODELS, ai.FREE_ROUTER])
+
+    def test_success_without_model_metadata_does_not_invent_actual_model(self):
+        reply = self.reply()
+        del reply["model"]
+        result, error, events = self.review(reply)
+        self.assertIsNone(error)
+        self.assertIn("идентификатор не указан", result[1])
+        self.assertEqual(len(events), 1)
+        self.assertIsNone(events[0]["actual_model"])
+        self.assertFalse(events[0]["will_retry"])
+
+    def test_two_http_failures_log_status_without_provider_error_text(self):
+        failures = [HTTPError(ai.ENDPOINT, 503, self.KEY + self.PRIVATE_TEXT,
+                              {"secret": self.KEY}, io.BytesIO(self.SOURCE.encode()))
+                    for _ in range(2)]
+        _, error, events = self.review(*failures)
+        self.assertIsInstance(error, RuntimeError)
+        self.assertEqual([event["http_status"] for event in events], [503, 503])
+        self.assertEqual([event["reason"] for event in events], ["http_error"] * 2)
+        self.assertEqual([event["outcome"] for event in events], ["retry", "failed"])
+        self.assertTrue(all(event["actual_model"] is None for event in events))
+
+    def test_http_429_recovers_without_changing_the_two_attempt_budget(self):
+        _, error, events = self.review(
+            HTTPError(ai.ENDPOINT, 429, self.KEY, {}, None), self.reply())
+        self.assertIsNone(error)
+        self.assertEqual(events[0]["http_status"], 429)
+        self.assertEqual(events[1]["actual_model"], ai.COMPACT_MODEL)
+
+    def test_network_and_timeout_causes_are_safe_and_distinct(self):
+        for failure, reason in (
+            (TimeoutError(self.KEY), "timeout"),
+            (URLError(TimeoutError(self.KEY)), "timeout"),
+            (URLError(self.KEY), "network_error"),
+        ):
+            with self.subTest(reason=reason, failure=type(failure)):
+                _, error, events = self.review(failure, failure)
+                self.assertIsInstance(error, RuntimeError)
+                self.assertEqual([event["reason"] for event in events], [reason] * 2)
+                self.assertEqual([event["outcome"] for event in events], ["retry", "failed"])
+
+    def test_validation_failure_is_logged_without_echoing_model_output(self):
+        invalid = self.reply(finish={"private": self.KEY})
+        invalid["choices"][0]["message"]["content"] = self.KEY + self.PRIVATE_TEXT
+        _, error, events = self.review(invalid, invalid)
+        self.assertIsInstance(error, ValueError)
+        self.assertEqual([event["reason"] for event in events], ["invalid_analysis"] * 2)
+        self.assertTrue(all(event["finish_reason"] is None for event in events))
+        self.assertEqual(events[-1]["outcome"], "failed")
+
+    def test_unverified_evidence_has_specific_reason(self):
+        invalid = self.reply(evidence="const fabricated = true;")
+        content = json.loads(invalid["choices"][0]["message"]["content"])
+        content.update(severity="низкий", decision="наблюдать")
+        invalid["choices"][0]["message"]["content"] = json.dumps(content)
+        _, error, events = self.review(invalid, self.reply())
+        self.assertIsNone(error)
+        self.assertEqual(events[0]["reason"], "unverified_evidence")
+
+    def test_untrusted_model_identifiers_are_not_published(self):
+        for model in (None, {}, "paid/model", "provider/model:free\n" + self.KEY,
+                      "provider/" + "x" * 101 + ":free", "provider/" + self.KEY + ":free"):
+            with self.subTest(model_type=type(model)):
+                result, error, events = self.review(self.reply(model=model))
+                self.assertIsNone(error)
+                self.assertIsNone(events[0]["actual_model"])
+                self.assertIn("идентификатор не указан", result[1])
+
+    def test_terminal_api_errors_are_logged_without_new_retries(self):
+        for failure, reason in (
+            (self.KEY.encode(), "invalid_api_json"),
+            (b"\xff\xfe\xff", "invalid_api_json"),
+            (b"x" * (ai.MAX_RESPONSE + 1), "response_too_large"),
+            (HTTPError(ai.ENDPOINT, 401, self.KEY, {}, None), "http_error"),
+            (RuntimeError("Переадресация OpenRouter отклонена"), "request_blocked"),
+        ):
+            with self.subTest(reason=reason):
+                _, error, events = self.review(failure)
+                self.assertIsInstance(error, RuntimeError)
+                self.assertEqual(len(events), 1)
+                self.assertEqual(events[0]["reason"], reason)
+                self.assertFalse(events[0]["will_retry"])
+
+    def test_api_error_envelope_logs_only_safe_metadata(self):
+        invalid = {"model": ai.FREE_MODELS[0],
+                   "error": {"message": self.KEY + self.PRIVATE_TEXT}}
+        _, error, events = self.review(invalid, invalid)
+        self.assertIsInstance(error, RuntimeError)
+        self.assertEqual([event["reason"] for event in events], ["api_error"] * 2)
+        self.assertEqual(events[0]["actual_model"], ai.FREE_MODELS[0])
+
+
 if __name__ == "__main__":
     unittest.main()
+
