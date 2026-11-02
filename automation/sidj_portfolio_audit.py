@@ -13,7 +13,7 @@ import os
 from pathlib import Path
 import re
 import sys
-from time import sleep
+from time import monotonic, sleep
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, build_opener, HTTPRedirectHandler, urlopen
 from zoneinfo import ZoneInfo
@@ -212,6 +212,35 @@ def evidence_is_complete(source: str, evidence: str) -> bool:
     return False
 
 
+def model_identifier(value: object, key: str) -> str | None:
+    """Accept bounded free model metadata, never arbitrary API text or the key."""
+    if (not isinstance(value, str) or len(value) > 100 or
+            (key and key in value)):
+        return None
+    if value == FREE_ROUTER or re.fullmatch(r"[A-Za-z0-9._-]+/[A-Za-z0-9._-]+:free", value):
+        return value
+    return None
+
+
+def log_attempt(attempt: int, models: list[str], started: float,
+                outcome: str, reason: str, key: str, *, model: object = None,
+                finish: object = None, http_status: int | None = None) -> None:
+    """One bounded JSON event per attempt; no prompts, answers or exception text."""
+    event = {
+        "event": "professor_attempt", "attempt": attempt + 1,
+        "requested_models": [model_identifier(item, key) for item in models],
+        "actual_model": model_identifier(model, key),
+        "outcome": outcome, "reason": reason,
+        "finish_reason": finish if isinstance(finish, str) and finish in (
+            "stop", "length", "content_filter", "tool_calls", "error") else None,
+        "will_retry": outcome == "retry",
+        "elapsed_ms": max(0, int((monotonic() - started) * 1000)),
+    }
+    if type(http_status) is int and 100 <= http_status <= 599:
+        event["http_status"] = http_status
+    print(json.dumps(event, ensure_ascii=False), flush=True)
+
+
 def free_review(source: str, path: str, project: str, key: str) -> tuple[dict, str]:
     """At most two requests, using only known-free routes with bounded retries."""
     if (not FREE_MODELS or any(not x.endswith(":free") for x in FREE_MODELS)
@@ -295,31 +324,47 @@ def free_review(source: str, path: str, project: str, key: str) -> tuple[dict, s
             "HTTP-Referer": "https://github.com/" + REPOSITORY,
             "X-Title": "B/S tech multi-project free AI review",
         })
+        started = monotonic()
         try:
             with build_opener(NoRedirect()).open(req, timeout=65) as response:
                 raw = response.read(MAX_RESPONSE + 1)
         except HTTPError as error:
-            if attempt == 0 and error.code in (408, 429, 500, 502, 503, 504):
+            retry = attempt == 0 and error.code in (408, 429, 500, 502, 503, 504)
+            log_attempt(attempt, models, started, "retry" if retry else "failed",
+                        "http_error", key, http_status=error.code)
+            if retry:
                 sleep(1)
                 continue
             # Record only trusted route metadata, never raw API error bodies.
             raise RuntimeError(
                 f"Бесплатный OpenRouter недоступен (HTTP {error.code}; "
                 f"маршрут: {models[0]} → {FREE_ROUTER})") from None
-        except (URLError, TimeoutError):
+        except (URLError, TimeoutError) as error:
+            timed_out = isinstance(error, TimeoutError) or (
+                isinstance(error, URLError) and isinstance(error.reason, TimeoutError))
+            log_attempt(attempt, models, started, "retry" if attempt == 0 else "failed",
+                        "timeout" if timed_out else "network_error", key)
             if attempt == 0:
                 sleep(1)
                 continue
             raise RuntimeError(
                 f"Бесплатный OpenRouter: ошибка сети/таймаут; "
                 f"маршрут: {models[0]} → {FREE_ROUTER}") from None
+        except RuntimeError:
+            log_attempt(attempt, models, started, "failed", "request_blocked", key)
+            raise
         if len(raw) > MAX_RESPONSE:
+            log_attempt(attempt, models, started, "failed", "response_too_large", key)
             raise RuntimeError("Ответ бесплатной модели слишком большой")
         try:
             result = json.loads(raw)
-        except json.JSONDecodeError:
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            log_attempt(attempt, models, started, "failed", "invalid_api_json", key)
             raise RuntimeError("API OpenRouter вернул некорректный JSON") from None
         if not isinstance(result, dict) or result.get("error"):
+            log_attempt(attempt, models, started, "retry" if attempt == 0 else "failed",
+                        "api_error", key,
+                        model=result.get("model") if isinstance(result, dict) else None)
             if attempt == 0:
                 continue
             raise RuntimeError("Бесплатная модель отклонила запрос")
@@ -327,40 +372,49 @@ def free_review(source: str, path: str, project: str, key: str) -> tuple[dict, s
         item = choices[0] if isinstance(choices, list) and choices and isinstance(choices[0], dict) else {}
         answer = item.get("message", {})
         finish = item.get("finish_reason")
+        model = result.get("model")
+        reason = "invalid_analysis"
         try:
             if finish == "length":
+                reason = "token_limit"
                 raise ValueError("Ответ бесплатной модели оборвался по лимиту токенов")
             analysis = parse_analysis(answer.get("content") if isinstance(answer, dict) else None)
             if analysis["decision"] not in ("исправить", "наблюдать", "отклонить", "нет замечаний"):
+                reason = "invalid_decision"
                 raise ValueError("Отсутствует осмысленный вердикт")
             if analysis["confidence"] not in ("низкая", "средняя", "высокая"):
+                reason = "invalid_confidence"
                 raise ValueError("Не указана степень уверенности")
             if any(len(analysis[field]) < 12 for field in
                    ("intent", "impact", "counterargument", "verification")):
+                reason = "missing_explanation"
                 raise ValueError("ИИ не объяснил назначение, последствия, альтернативу или проверку")
             if analysis["decision"] == "исправить" and analysis["confidence"] != "высокая":
+                reason = "unsupported_fix"
                 raise ValueError("Категоричное исправление без высокой уверенности")
             is_clear = analysis["severity"] == "нет замечаний"
             if is_clear != (analysis["decision"] == "нет замечаний"):
+                reason = "conflicting_verdict"
                 raise ValueError("Противоречие между важностью и вердиктом")
             if is_clear:
                 if analysis["evidence"]:
+                    reason = "unexpected_evidence"
                     raise ValueError("Для отчёта без замечаний цитата должна быть пустой")
             elif not evidence_is_complete(attempt_source, analysis["evidence"]):
+                reason = "unverified_evidence"
                 raise ValueError("Цитата ИИ не подтверждается исходным кодом")
         except ValueError as error:
             # No untrusted model output or source appears in diagnostics.
+            log_attempt(attempt, models, started, "retry" if attempt == 0 else "failed",
+                        reason, key, model=model, finish=finish)
             if attempt == 0:
                 continue
             raise ValueError(f"ИИ-аудит не завершён после двух попыток: {error}") from None
         analysis["_retry_excerpt"] = attempt > 0 and attempt_source != source
-        model = result.get("model", models[0])
-        # The dynamic router may choose a free model outside our fixed list.
-        if (not isinstance(model, str) or
-                (model != FREE_ROUTER and
-                 not re.fullmatch(r"[A-Za-z0-9._-]+/[A-Za-z0-9._-]+:free", model))):
-            model = "бесплатная модель (идентификатор не указан)"
-        return analysis, model
+        log_attempt(attempt, models, started, "success", "validated", key,
+                    model=model, finish=finish)
+        # Missing metadata must not be presented as the requested model.
+        return analysis, model_identifier(model, key) or "бесплатная модель (идентификатор не указан)"
     raise RuntimeError("Не удалось получить проверенный ответ ИИ")
 
 
