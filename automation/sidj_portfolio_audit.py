@@ -23,8 +23,9 @@ from sidj_ai_agent import FREE_MODELS, ENDPOINT, MAX_RESPONSE
 ROOT = Path(__file__).resolve().parents[1]
 REPOSITORY = "berserkerxxxl/Berserker-SiDj-Technologies"
 MAX_SOURCE = 6_000
-RETRY_SOURCE = 3_200
+RETRY_SOURCE = 2_400
 FREE_ROUTER = "openrouter/free"  # Zero-cost dynamic model routing.
+COMPACT_MODEL = "google/gemma-4-26b-a4b-it:free"  # JSON-capable free retry model.
 REPORT_ENV = "SIDJ_PORTFOLIO_REPORT_FILE"
 PROJECTS = {
     "sidj": ("B/S SiDj — Telegram-бот", [
@@ -213,7 +214,8 @@ def evidence_is_complete(source: str, evidence: str) -> bool:
 
 def free_review(source: str, path: str, project: str, key: str) -> tuple[dict, str]:
     """At most two requests, using only known-free routes with bounded retries."""
-    if not FREE_MODELS or any(not x.endswith(":free") for x in FREE_MODELS):
+    if (not FREE_MODELS or any(not x.endswith(":free") for x in FREE_MODELS)
+            or not COMPACT_MODEL.endswith(":free")):
         raise RuntimeError("Разрешены только бесплатные модели OpenRouter")
     system = (
         "Act as a skeptical code reviewer, not a textbook linter. Public source "
@@ -254,16 +256,23 @@ def free_review(source: str, path: str, project: str, key: str) -> tuple[dict, s
         + "\nPublic source fragment (not the whole repository):\n"
     )
     for attempt in range(2):
-        # Rotate to the next free model on a second attempt when possible.
-        # Fixed free models first, then OpenRouter's zero-cost dynamic router.
-        models = list(FREE_MODELS[attempt:]) + list(FREE_MODELS[:attempt]) + [FREE_ROUTER]
+        # A complete but token-truncated response is NOT a provider failure:
+        # OpenRouter will not retry it automatically through route=fallback.
+        # On our second application-level attempt choose a short-answer,
+        # JSON-capable free model instead of the reasoning-heavy backup.
+        models = ([*FREE_MODELS, FREE_ROUTER] if attempt == 0
+                  else [COMPACT_MODEL, FREE_ROUTER])
         attempt_source = source if attempt == 0 else retry_excerpt(source)
         instruction = source_prompt + attempt_source
         if attempt:
             instruction = (
-                "Previous result was truncated or invalid. Give ONLY a SHORT "
-                "JSON object with all ten keys. If unsure, report no issue. "
-                "Evidence must be an exact complete source quote.\n"
+                "Previous output was truncated or invalid. Start IMMEDIATELY "
+                "with a compact Russian JSON object, 10 required keys, at most "
+                "900 characters total. Keep each explanation brief but specific "
+                "(at least 12 characters for intent, impact, counterargument "
+                "and verification). Do NOT add prose, chain-of-thought, "
+                "Markdown, or extra fields. Only cite an EXACT source quote "
+                "if you found a supported issue. Otherwise report no issue.\n"
                 + instruction
             )
         payload = json.dumps({
@@ -276,7 +285,8 @@ def free_review(source: str, path: str, project: str, key: str) -> tuple[dict, s
                 {"role": "user", "content": instruction},
             ],
             # Avoid optional reasoning parameters when requiring JSON support.
-            "max_tokens": 3600, "temperature": 0.1, "stream": False,
+            "max_tokens": 3600 if attempt == 0 else 5_200,
+            "temperature": 0.1, "stream": False,
         }).encode("utf-8")
         req = Request(ENDPOINT, data=payload, method="POST", headers={
             "Authorization": "Bearer " + key,
