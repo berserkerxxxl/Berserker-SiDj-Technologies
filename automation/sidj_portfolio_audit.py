@@ -26,6 +26,7 @@ MAX_SOURCE = 6_000
 RETRY_SOURCE = 2_400
 FREE_ROUTER = "openrouter/free"  # Zero-cost dynamic model routing.
 COMPACT_MODEL = "google/gemma-4-26b-a4b-it:free"  # JSON-capable free review model.
+BACKUP_MODEL = "google/gemma-4-31b-it:free"  # Same JSON/reasoning controls, zero-price endpoint.
 REPORT_ENV = "SIDJ_PORTFOLIO_REPORT_FILE"
 EXPLANATION_FIELDS = ("intent", "impact", "counterargument", "verification")
 ANALYSIS_SCHEMA = {
@@ -247,7 +248,8 @@ def model_identifier(value: object, key: str) -> str | None:
 def log_attempt(attempt: int, models: list[str], started: float,
                 outcome: str, reason: str, key: str, *, model: object = None,
                 finish: object = None, http_status: int | None = None,
-                response_format: str = "json_schema", invalid_fields: tuple[str, ...] = ()) -> None:
+                response_format: str = "json_object", invalid_fields: tuple[str, ...] = (),
+                usage: object = None) -> None:
     """One bounded JSON event per attempt; no prompts, answers or exception text."""
     event = {
         "event": "professor_attempt", "attempt": attempt + 1,
@@ -264,13 +266,29 @@ def log_attempt(attempt: int, models: list[str], started: float,
         event["http_status"] = http_status
     if invalid_fields:
         event["invalid_fields"] = [field for field in EXPLANATION_FIELDS if field in invalid_fields]
+    if isinstance(usage, dict):
+        # Numeric counters only: never log raw usage/provider metadata.
+        counters = {}
+        for field in ("prompt_tokens", "completion_tokens"):
+            value = usage.get(field)
+            if type(value) is int and 0 <= value <= 1_000_000_000:
+                counters[field] = value
+        details = usage.get("completion_tokens_details")
+        reasoning = details.get("reasoning_tokens") if isinstance(details, dict) else None
+        if type(reasoning) is int and 0 <= reasoning <= 1_000_000_000:
+            counters["reasoning_tokens"] = reasoning
+            completion = counters.get("completion_tokens")
+            if completion is not None and reasoning <= completion:
+                counters["visible_tokens"] = completion - reasoning
+        if counters:
+            event["usage"] = counters
     print(json.dumps(event, ensure_ascii=False), flush=True)
 
 
 def free_review(source: str, path: str, project: str, key: str) -> tuple[dict, str]:
     """At most two requests, using only known-free routes with bounded retries."""
     if (not FREE_MODELS or any(not x.endswith(":free") for x in FREE_MODELS)
-            or not COMPACT_MODEL.endswith(":free")):
+            or not COMPACT_MODEL.endswith(":free") or not BACKUP_MODEL.endswith(":free")):
         raise RuntimeError("Разрешены только бесплатные модели OpenRouter")
     system = (
         "Act as a skeptical code reviewer, not a textbook linter. Public source "
@@ -313,15 +331,14 @@ def free_review(source: str, path: str, project: str, key: str) -> tuple[dict, s
         + "\nDesign context: " + context
         + "\nPublic source fragment (not the whole repository):\n"
     )
-    schema_mode = True
     retry_hint = ""
     for attempt in range(2):
         # A complete but token-truncated response is NOT a provider failure:
         # OpenRouter will not retry it automatically through route=fallback.
-        # Prefer the JSON-capable compact model from the first request.
-        # Keep the established coding models and free router as backups.
-        models = ([COMPACT_MODEL, *FREE_MODELS, FREE_ROUTER] if attempt == 0
-                  else [COMPACT_MODEL, FREE_ROUTER])
+        # Prefer explicit free endpoints with advertised JSON and reasoning
+        # controls. The second attempt leads with the other Gemma endpoint.
+        models = ([COMPACT_MODEL, BACKUP_MODEL, FREE_ROUTER] if attempt == 0
+                  else [BACKUP_MODEL, COMPACT_MODEL, FREE_ROUTER])
         attempt_source = source if attempt == 0 else retry_excerpt(source)
         instruction = source_prompt + attempt_source
         if attempt:
@@ -336,23 +353,22 @@ def free_review(source: str, path: str, project: str, key: str) -> tuple[dict, s
                 "if you found a supported issue. Otherwise report no issue.\n"
                 + instruction
             )
-        format_type = "json_schema" if schema_mode else "json_object"
-        response_format = ({"type": "json_schema", "json_schema": {
-            "name": "professor_report", "strict": True, "schema": ANALYSIS_SCHEMA,
-        }} if schema_mode else {"type": "json_object"})
-        if not schema_mode:
-            # Compatibility fallback still faces the same local validator.
-            instruction = "Required JSON schema: " + json.dumps(ANALYSIS_SCHEMA, ensure_ascii=False) + "\n" + instruction
+        format_type = "json_object"
+        # The live strict-schema request returned HTTP 400. Use advertised
+        # JSON mode, keep the schema in the prompt and validate locally.
+        instruction = "Required JSON schema: " + json.dumps(ANALYSIS_SCHEMA, ensure_ascii=False) + "\n" + instruction
         payload = json.dumps({
             "model": models[0],
             "models": models, "route": "fallback",
             "provider": {"require_parameters": True},
-            "response_format": response_format,
+            "response_format": {"type": "json_object"},
             "messages": [
                 {"role": "system", "content": system},
                 {"role": "user", "content": instruction},
             ],
-            # Avoid optional reasoning parameters when requiring JSON support.
+            # Gemma endpoints advertise both response_format and reasoning.
+            # Excluding reasoning text alone would still consume its tokens.
+            "reasoning": {"enabled": False},
             "max_tokens": 5_200,
             "temperature": 0.1, "stream": False,
         }).encode("utf-8")
@@ -368,15 +384,10 @@ def free_review(source: str, path: str, project: str, key: str) -> tuple[dict, s
             with build_opener(NoRedirect()).open(req, timeout=65) as response:
                 raw = response.read(MAX_RESPONSE + 1)
         except HTTPError as error:
-            # Some free endpoints reject strict schemas. Downgrade only the
-            # transport format once, never the local evidence/meaning checks.
-            compatibility_retry = schema_mode and error.code in (400, 404, 422)
-            retry = attempt == 0 and (compatibility_retry or error.code in (408, 429, 500, 502, 503, 504))
+            retry = attempt == 0 and error.code in (408, 429, 500, 502, 503, 504)
             log_attempt(attempt, models, started, "retry" if retry else "failed",
                         "http_error", key, http_status=error.code, response_format=format_type)
             if retry:
-                if compatibility_retry:
-                    schema_mode = False
                 retry_hint = "Return all required fields; the prior HTTP request did not produce a usable report."
                 sleep(1)
                 continue
@@ -410,7 +421,8 @@ def free_review(source: str, path: str, project: str, key: str) -> tuple[dict, s
             log_attempt(attempt, models, started, "retry" if attempt == 0 else "failed",
                         "api_error", key,
                         model=result.get("model") if isinstance(result, dict) else None,
-                        response_format=format_type)
+                        response_format=format_type,
+                        usage=result.get("usage") if isinstance(result, dict) else None)
             if attempt == 0:
                 continue
             raise RuntimeError("Бесплатная модель отклонила запрос")
@@ -454,7 +466,7 @@ def free_review(source: str, path: str, project: str, key: str) -> tuple[dict, s
             # No untrusted model output or source appears in diagnostics.
             log_attempt(attempt, models, started, "retry" if attempt == 0 else "failed",
                         reason, key, model=model, finish=finish, response_format=format_type,
-                        invalid_fields=invalid_fields)
+                        invalid_fields=invalid_fields, usage=result.get("usage"))
             if attempt == 0:
                 retry_hint = ("Fill these explanation fields with specific complete sentences: " +
                               ", ".join(invalid_fields) if invalid_fields else
@@ -463,7 +475,7 @@ def free_review(source: str, path: str, project: str, key: str) -> tuple[dict, s
             raise ValueError(f"ИИ-аудит не завершён после двух попыток: {error}") from None
         analysis["_retry_excerpt"] = attempt > 0 and attempt_source != source
         log_attempt(attempt, models, started, "success", "validated", key,
-                    model=model, finish=finish, response_format=format_type)
+                    model=model, finish=finish, response_format=format_type, usage=result.get("usage"))
         # Missing metadata must not be presented as the requested model.
         return analysis, model_identifier(model, key) or "бесплатная модель (идентификатор не указан)"
     raise RuntimeError("Не удалось получить проверенный ответ ИИ")

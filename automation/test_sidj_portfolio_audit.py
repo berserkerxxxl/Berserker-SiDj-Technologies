@@ -161,10 +161,10 @@ class PortfolioTests(unittest.TestCase):
         self.assertEqual(len(requests), 1)
         self.assertTrue(all(m.endswith(":free") or m == ai.FREE_ROUTER for m in requests[0]["models"]))
         self.assertEqual(requests[0]["route"], "fallback")
-        self.assertEqual(requests[0]["response_format"]["type"], "json_schema")
+        self.assertEqual(requests[0]["response_format"], {"type": "json_object"})
         self.assertEqual(requests[0]["max_tokens"], 5200)
         self.assertEqual(requests[0]["provider"], {"require_parameters": True})
-        self.assertNotIn("reasoning", requests[0])
+        self.assertEqual(requests[0]["reasoning"], {"enabled": False})
         self.assertEqual(requests[0]["models"][-1], ai.FREE_ROUTER)
         self.assertLess(ai.RETRY_SOURCE, ai.MAX_SOURCE)
         self.assertNotIn("api_key", requests[0])
@@ -224,12 +224,12 @@ class PortfolioTests(unittest.TestCase):
         self.assertEqual(len(calls), 2)
         self.assertEqual(result["evidence"], "const someLongName =")
         self.assertEqual(calls[0]["model"], ai.COMPACT_MODEL)
-        self.assertEqual(calls[1]["model"], ai.COMPACT_MODEL)
+        self.assertEqual(calls[1]["model"], ai.BACKUP_MODEL)
         self.assertTrue(all(model.endswith(":free") or model == ai.FREE_ROUTER for call in calls for model in call["models"]))
         self.assertEqual([call["max_tokens"] for call in calls], [5200, 5200])
         self.assertTrue(all(call["provider"] == {"require_parameters": True}
                             for call in calls))
-        self.assertTrue(all("reasoning" not in call for call in calls))
+        self.assertTrue(all(call["reasoning"] == {"enabled": False} for call in calls))
 
     def test_truncated_first_answer_succeeds_on_retry(self):
         source = "const timeout = 25;\n"
@@ -291,7 +291,7 @@ class PortfolioTests(unittest.TestCase):
         self.assertEqual(result["decision"], "нет замечаний")
         self.assertEqual(model, ai.COMPACT_MODEL)
         self.assertEqual(len(calls), 2)
-        self.assertEqual(calls[1]["models"], [ai.COMPACT_MODEL, ai.FREE_ROUTER])
+        self.assertEqual(calls[1]["models"], [ai.BACKUP_MODEL, ai.COMPACT_MODEL, ai.FREE_ROUTER])
         self.assertEqual(calls[1]["max_tokens"], 5200)
         self.assertIn("1600 characters", calls[1]["messages"][1]["content"])
         self.assertLess(ai.RETRY_SOURCE, ai.MAX_SOURCE)
@@ -591,7 +591,7 @@ class PortfolioTests(unittest.TestCase):
 
         self.assertEqual(len(calls), 2)
         pause.assert_called_once_with(1)
-        self.assertEqual([call["model"] for call in calls], [ai.COMPACT_MODEL, ai.COMPACT_MODEL])
+        self.assertEqual([call["model"] for call in calls], [ai.COMPACT_MODEL, ai.BACKUP_MODEL])
         self.assertTrue(all(call["models"][-1] == ai.FREE_ROUTER for call in calls))
         self.assertTrue(all(call["provider"]["require_parameters"] for call in calls))
 
@@ -633,6 +633,7 @@ class PortfolioTests(unittest.TestCase):
         self.assertTrue(ai.FREE_MODELS)
         self.assertTrue(all(m.endswith(":free") for m in ai.FREE_MODELS))
         self.assertTrue(ai.COMPACT_MODEL.endswith(":free"))
+        self.assertTrue(ai.BACKUP_MODEL.endswith(":free"))
 
     def test_denies_non_free_model(self):
         with patch.object(ai, "FREE_MODELS", ("expensive/model",)):
@@ -683,7 +684,7 @@ class AttemptDiagnosticsTests(unittest.TestCase):
         self.assertEqual(len(events), len(calls))
         self.assertLessEqual(len(calls), 2)
         for event in events:
-            self.assertEqual(set(event) - {"http_status", "invalid_fields"}, {
+            self.assertEqual(set(event) - {"http_status", "invalid_fields", "usage"}, {
                 "event", "attempt", "requested_models", "actual_model", "outcome",
                 "reason", "finish_reason", "will_retry", "elapsed_ms", "response_format"})
             self.assertEqual(event["event"], "professor_attempt")
@@ -707,8 +708,8 @@ class AttemptDiagnosticsTests(unittest.TestCase):
         self.assertEqual(events[0]["finish_reason"], "length")
         self.assertEqual(events[0]["actual_model"], ai.FREE_MODELS[0])
         self.assertEqual(events[1]["actual_model"], model)
-        self.assertEqual(events[1]["requested_models"], [ai.COMPACT_MODEL, ai.FREE_ROUTER])
-        self.assertEqual(events[0]["requested_models"], [ai.COMPACT_MODEL, *ai.FREE_MODELS, ai.FREE_ROUTER])
+        self.assertEqual(events[1]["requested_models"], [ai.BACKUP_MODEL, ai.COMPACT_MODEL, ai.FREE_ROUTER])
+        self.assertEqual(events[0]["requested_models"], [ai.COMPACT_MODEL, ai.BACKUP_MODEL, ai.FREE_ROUTER])
 
     def test_success_without_model_metadata_does_not_invent_actual_model(self):
         reply = self.reply()
@@ -800,16 +801,17 @@ class AttemptDiagnosticsTests(unittest.TestCase):
         self.assertEqual([event["reason"] for event in events], ["api_error"] * 2)
         self.assertEqual(events[0]["actual_model"], ai.FREE_MODELS[0])
 
-    def test_strict_schema_requires_ten_fields_and_full_explanations(self):
+    def test_json_mode_carries_ten_field_schema_and_disables_reasoning(self):
         _, error, events = self.review(self.reply())
         self.assertIsNone(error)
         request = self.calls[0]
         self.assertEqual(request["model"], ai.COMPACT_MODEL)
         self.assertEqual(request["provider"], {"require_parameters": True})
         format_spec = request["response_format"]
-        self.assertEqual(format_spec["type"], "json_schema")
-        self.assertTrue(format_spec["json_schema"]["strict"])
-        schema = format_spec["json_schema"]["schema"]
+        self.assertEqual(format_spec, {"type": "json_object"})
+        self.assertEqual(request["reasoning"], {"enabled": False})
+        prefix = request["messages"][1]["content"].split("\n", 1)[0]
+        schema = json.loads(prefix.removeprefix("Required JSON schema: "))
         fields = {"finding", "recommendation", "severity", "evidence", "intent",
                   "impact", "counterargument", "decision", "confidence", "verification"}
         self.assertEqual(set(schema["required"]), fields)
@@ -818,7 +820,7 @@ class AttemptDiagnosticsTests(unittest.TestCase):
         for field in ("intent", "impact", "counterargument", "verification"):
             self.assertEqual(schema["properties"][field]["minLength"], 12)
             self.assertTrue(schema["properties"][field]["description"])
-        self.assertEqual(events[0]["response_format"], "json_schema")
+        self.assertEqual(events[0]["response_format"], "json_object")
 
     def test_short_explanation_gets_targeted_retry_without_echoing_answer(self):
         invalid = self.reply()
@@ -834,7 +836,7 @@ class AttemptDiagnosticsTests(unittest.TestCase):
         self.assertIn("intent, verification", retry)
         self.assertNotIn(self.PRIVATE_TEXT, retry)
         self.assertNotIn(self.KEY, retry)
-        self.assertEqual(self.calls[1]["response_format"]["type"], "json_schema")
+        self.assertEqual(self.calls[1]["response_format"], {"type": "json_object"})
 
     def test_repeated_missing_explanation_is_still_rejected(self):
         invalid = self.reply()
@@ -846,34 +848,32 @@ class AttemptDiagnosticsTests(unittest.TestCase):
         self.assertEqual(events[-1]["outcome"], "failed")
         self.assertEqual(events[-1]["invalid_fields"], ["counterargument"])
 
-    def test_schema_http_rejection_gets_one_compatible_attempt(self):
+    def test_permanent_request_errors_do_not_retry_an_invalid_request(self):
         for status in (400, 404, 422):
             with self.subTest(status=status):
-                _, error, events = self.review(
-                    HTTPError(ai.ENDPOINT, status, self.KEY, {}, None), self.reply())
-                self.assertIsNone(error)
-                self.assertEqual([event["response_format"] for event in events],
-                                 ["json_schema", "json_object"])
-                self.assertEqual(self.calls[1]["response_format"], {"type": "json_object"})
-                retry = self.calls[1]["messages"][1]["content"]
-                self.assertIn("Required JSON schema:", retry)
-                self.assertIn('"minLength": 12', retry)
+                _, error, events = self.review(HTTPError(ai.ENDPOINT, status, self.KEY, {}, None))
+                self.assertIsInstance(error, RuntimeError)
+                self.assertEqual(len(events), 1)
+                self.assertEqual(events[0]["response_format"], "json_object")
+                self.assertFalse(events[0]["will_retry"])
 
     def test_compatible_attempt_does_not_accept_fabricated_evidence(self):
         invalid = self.reply()
         content = json.loads(invalid["choices"][0]["message"]["content"])
         content.update(severity="низкий", decision="наблюдать", evidence="const invented = true;")
         invalid["choices"][0]["message"]["content"] = json.dumps(content)
-        _, error, events = self.review(HTTPError(ai.ENDPOINT, 400, self.KEY, {}, None), invalid)
+        _, error, events = self.review(self.reply(finish="length"), invalid)
         self.assertIsInstance(error, ValueError)
         self.assertEqual(events[-1]["response_format"], "json_object")
         self.assertEqual(events[-1]["reason"], "unverified_evidence")
         self.assertFalse(events[-1]["will_retry"])
 
-    def test_temporary_http_failure_keeps_strict_schema(self):
+    def test_temporary_http_failure_keeps_json_mode_and_reasoning_off(self):
         _, error, events = self.review(HTTPError(ai.ENDPOINT, 503, self.KEY, {}, None), self.reply())
         self.assertIsNone(error)
-        self.assertEqual([event["response_format"] for event in events], ["json_schema"] * 2)
+        self.assertEqual([event["response_format"] for event in events], ["json_object"] * 2)
+        self.assertTrue(all(call["reasoning"] == {"enabled": False} for call in self.calls))
+        self.assertEqual(self.calls[1]["model"], ai.BACKUP_MODEL)
 
     def test_authorization_or_billing_rejection_never_downgrades_or_retries(self):
         for status in (401, 402, 403):
@@ -881,8 +881,63 @@ class AttemptDiagnosticsTests(unittest.TestCase):
                 _, error, events = self.review(HTTPError(ai.ENDPOINT, status, self.KEY, {}, None))
                 self.assertIsInstance(error, RuntimeError)
                 self.assertEqual(len(events), 1)
-                self.assertEqual(events[0]["response_format"], "json_schema")
+                self.assertEqual(events[0]["response_format"], "json_object")
                 self.assertFalse(events[0]["will_retry"])
+
+    def test_explicit_gemma_routes_match_advertised_json_and_reasoning_controls(self):
+        _, error, _ = self.review(self.reply(finish="length"), self.reply(model=ai.BACKUP_MODEL))
+        self.assertIsNone(error)
+        self.assertEqual([call["model"] for call in self.calls],
+                         ["google/gemma-4-26b-a4b-it:free", "google/gemma-4-31b-it:free"])
+        for call in self.calls:
+            self.assertEqual(call["response_format"], {"type": "json_object"})
+            self.assertEqual(call["reasoning"], {"enabled": False})
+            self.assertEqual(call["provider"], {"require_parameters": True})
+            self.assertEqual(call["models"][-1], ai.FREE_ROUTER)
+            self.assertTrue(all(model.endswith(":free") for model in call["models"][:-1]))
+            self.assertNotIn("json_schema", call["response_format"])
+
+    def test_numeric_usage_distinguishes_reasoning_budget_from_visible_output(self):
+        first = self.reply(model="dots-studio/dots-3-note-preview:free", finish="length")
+        first["usage"] = {"prompt_tokens": 2048, "completion_tokens": 5200,
+                          "completion_tokens_details": {"reasoning_tokens": 5199,
+                                                        "private": self.KEY},
+                          "private": self.PRIVATE_TEXT}
+        second = self.reply(model=ai.BACKUP_MODEL)
+        second["usage"] = {"completion_tokens": 512,
+                           "completion_tokens_details": {"reasoning_tokens": 0}}
+        _, error, events = self.review(first, second)
+        self.assertIsNone(error)
+        self.assertEqual(events[0]["usage"], {"prompt_tokens": 2048, "completion_tokens": 5200,
+                                            "reasoning_tokens": 5199, "visible_tokens": 1})
+        self.assertEqual(events[1]["usage"]["visible_tokens"], 512)
+
+    def test_untrusted_usage_values_are_omitted_without_conversion(self):
+        for usage in ({"prompt_tokens": self.KEY, "completion_tokens": True,
+                       "completion_tokens_details": {"reasoning_tokens": self.PRIVATE_TEXT}},
+                      {"prompt_tokens": -1, "completion_tokens": 1_000_000_001,
+                       "completion_tokens_details": {"reasoning_tokens": -1}},
+                      self.PRIVATE_TEXT, [self.KEY]):
+            with self.subTest(usage_type=type(usage)):
+                reply = self.reply()
+                reply["usage"] = usage
+                _, error, events = self.review(reply)
+                self.assertIsNone(error)
+                self.assertNotIn("usage", events[0])
+
+    def test_inconsistent_usage_never_invents_negative_visible_tokens(self):
+        reply = self.reply()
+        reply["usage"] = {"completion_tokens": 10,
+                          "completion_tokens_details": {"reasoning_tokens": 11}}
+        _, error, events = self.review(reply)
+        self.assertIsNone(error)
+        self.assertNotIn("visible_tokens", events[0]["usage"])
+
+    def test_paid_backup_model_is_rejected_before_network(self):
+        with patch.object(ai, "BACKUP_MODEL", "paid/model"), patch.object(ai, "build_opener") as network:
+            with self.assertRaisesRegex(RuntimeError, "только бесплатные модели"):
+                ai.free_review(self.SOURCE, "path.js", "B/S", self.KEY)
+        network.assert_not_called()
 
 
 if __name__ == "__main__":
