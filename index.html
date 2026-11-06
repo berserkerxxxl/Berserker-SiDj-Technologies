@@ -75,6 +75,12 @@ section{padding:60px 0}.eyebrow{text-transform:uppercase;font-size:.79rem;font-w
 .mini-links a{padding:9px 13px;border:1px solid #6c9ccc70;border-radius:10px;background:#25426a85;text-decoration:none;color:#d7e9ff;font-size:.83rem;font-weight:750}
 .mini-links a:hover{background:#355b94;color:#fff}.mini-links .mini-download{background:linear-gradient(115deg,#1988d7,#8358dd);color:#fff;border-color:#7caaff9e;box-shadow:0 6px 22px #2f78d53d}.mini-links .mini-download:hover{background:linear-gradient(115deg,#36a2ed,#976dec)}
 @media(max-width:600px){.mini-product{grid-template-columns:1fr}.mini-icon{width:58px;height:58px;font-size:1.6rem}}
+/* Finder: paused beta, intentionally distinct from published releases */
+.finder-preview{border-color:#7396c47d;background:linear-gradient(130deg,#142747,#1e203d)}
+.finder-preview .mini-icon{background:linear-gradient(135deg,#176a94,#62559e)}
+.finder-beta-label{display:inline-block;margin-left:8px;vertical-align:middle;border:1px solid #74b5ed88;border-radius:999px;padding:4px 10px;background:#214c7159;color:#b9e0ff;font-size:.68rem;font-weight:800;letter-spacing:.07em}
+.finder-preview .mini-disclaimer{line-height:1.6}
+
 /* Useful knowledge base */
 .useful-section{scroll-margin-top:24px}
 .passport{display:grid;grid-template-columns:1.1fr .9fr;gap:24px;background:#11213a;border:1px solid #6a7e9957;border-radius:20px;padding:28px;margin-top:23px}.passport dl{margin:0}.passport dl>div{border-bottom:1px solid #ffffff19;padding:10px 0}.passport dt{color:var(--muted);font-size:.82rem}.passport dd{font-weight:700;margin:3px 0}.passport p{color:var(--muted);margin-top:0}
@@ -412,6 +418,20 @@ html[data-matrix-motion="off"] .matrix-stream{animation-play-state:paused!import
     </div>
     <p class="release-note"><strong>Релиз 0.2.0.</strong> Начните с проверки копии и восстановления. Не используйте программу как единственное место хранения данных. Экспорт ChatGPT запрашивается отдельно.</p>
     <p class="mini-disclaimer">Версия 0.2.0 · билд 20261030.5: автоматическое копирование с подтверждением завершения, журналом последней ошибки, проверкой вручную и отключением расписания. Рабочая Data открытая; шифруются репозитории.</p>
+  </div>
+</article>
+
+<article class="mini-product finder-preview" id="bs-tech-finder" aria-labelledby="finder-title">
+  <div class="mini-icon" aria-hidden="true">🔎</div>
+  <div class="mini-product-body">
+    <div class="mini-tag">Windows 11 x64 · Бета-версия · Разработка приостановлена</div>
+    <h3 id="finder-title">B/S tech Finder <span class="finder-beta-label">БЕТА</span></h3>
+    <p>Локальный поисковик файлов и информации на компьютере. Индексирует названия и текст документов, поддерживает кириллицу и латиницу. Поиск по смыслу на русском языке и работа с устаревшими кодировками ещё дорабатываются.</p>
+    <div class="mini-links">
+      <a class="mini-download" href="https://github.com/berserkerxxxl/BS-tech-Finder/actions/runs/41888074953" target="_blank" rel="noopener noreferrer">↗ Тестовая сборка для участников проекта (GitHub)</a>
+    </div>
+    <p class="release-note"><strong>Бета-версия · пауза в разработке.</strong> Последняя успешно собранная Windows x64-версия — 4 ноября 2026 года. Работы временно остановлены до приобретения мини-ПК для локальной компиляции. Это не стабильный релиз.</p>
+    <p class="mini-disclaimer"><strong>О доступе:</strong> сборка хранится в приватном GitHub Actions, доступна только участникам репозитория и удаляется по окончании срока хранения артефакта. Публичная постоянная загрузка пока не опубликована. Испытывайте программу только на несекретных тестовых файлах; в текущей сборке русский смысловой поиск ограничен, а старые кодировки TXT могут не распознаваться. Цифровой подписи нет.</p>
   </div>
 </article>
 
